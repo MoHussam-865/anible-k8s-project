@@ -1,0 +1,22 @@
+﻿# =============================================================================
+# inventory/production/host_vars/control-plane-01.yml
+# =============================================================================
+# Host variables apply ONLY to this single host.
+#
+# PRECEDENCE:
+#   host_vars has HIGHER precedence than group_vars.
+#
+# Use host_vars for truly unique settings:
+#   - Custom SSH ports
+#   - Unique interface names
+#   - Special kernel parameters for this specific machine
+# =============================================================================
+
+---
+# The unique host identifier (ansible_host is already in hosts.yml)
+ansible_host: 192.168.1.10
+kubelet_node_type: "control-plane"
+
+# In production, you might have different network interfaces
+# cluster_network_interface: "eth1"
+# management_interface: "eth0"

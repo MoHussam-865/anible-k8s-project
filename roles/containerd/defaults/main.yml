@@ -1,0 +1,51 @@
+﻿# =============================================================================
+# roles/containerd/defaults/main.yml
+# =============================================================================
+# Default variables for the containerd (Container Runtime) role.
+#
+# These values can be overridden in group_vars, host_vars, or via -e.
+# =============================================================================
+
+---
+# ---------------------------------------------------------------------------
+# Installation method
+# ---------------------------------------------------------------------------
+# Options:
+#   "apt"     - Install via apt package manager (simpler, older version)
+#   "github"  - Download release binary from GitHub (newer, more complex)
+#
+# For home lab: use "apt" (simpler, works out of the box)
+# For production: use "github" (you control the exact binary)
+# ---------------------------------------------------------------------------
+
+containerd_install_method: "apt"
+
+# ---------------------------------------------------------------------------
+# containerd version (used when install_method = "github")
+# ---------------------------------------------------------------------------
+containerd_version: "1.7.6"
+
+# URL pattern for GitHub releases
+containerd_github_url: "https://github.com/containerd/containerd/releases/download/v{{ containerd_version }}/containerd-{{ containerd_version }}-linux-amd64.tar.gz"
+
+# ---------------------------------------------------------------------------
+# Apt package configuration
+# ---------------------------------------------------------------------------
+containerd_apt_package: "containerd.io"
+
+# ---------------------------------------------------------------------------
+# containerd configuration file path
+# ---------------------------------------------------------------------------
+containerd_config_path: "/etc/containerd/config.yml"
+
+# ---------------------------------------------------------------------------
+# containerd service settings
+# ---------------------------------------------------------------------------
+containerd_service_name: containerd
+containerd_service_state: started
+containerd_service_enabled: true
+
+# ---------------------------------------------------------------------------
+# containerd runtime directory
+# ---------------------------------------------------------------------------
+containerd_root: /var/lib/containerd

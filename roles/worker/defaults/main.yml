@@ -1,0 +1,31 @@
+# =============================================================================
+# roles/worker/defaults/main.yml
+# =============================================================================
+# Default variables for the Worker role.
+# =============================================================================
+
+---
+# ---------------------------------------------------------------------------
+# Join behavior
+# ---------------------------------------------------------------------------
+
+# Whether to automatically join the cluster
+worker_join_cluster: true
+
+# Timeout for waiting for the control plane to be ready (seconds)
+worker_control_plane_wait_timeout: 120
+
+# How often to poll the control plane (seconds)
+worker_control_plane_poll_interval: 5
+
+# Control plane hostname (from inventory)
+worker_control_plane_host: "{{ groups['control-plane'][0] }}"
+
+# Control plane API port
+worker_control_plane_port: "{{ kubernetes_api_port | default('6443') }}"
+
+# ---------------------------------------------------------------------------
+# kubelet config
+# ---------------------------------------------------------------------------
+
+kubelet_config_file: /etc/kubernetes/kubelet/config.yaml

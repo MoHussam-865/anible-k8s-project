@@ -1,0 +1,204 @@
+﻿# =============================================================================
+# roles/worker/tasks/main.yml
+# =============================================================================
+# Join worker nodes to the Kubernetes cluster.
+#
+# =============================================================================
+# WHAT THIS ROLE DOES
+# =============================================================================
+#   1. Wait for the control plane to be ready
+#   2. Retrieve the join command from the control plane (via hostvars)
+#   3. Run 'kubeadm join' to attach this node to the cluster
+#   4. Deploy worker kubelet configuration
+#   5. Start kubelet
+#
+# =============================================================================
+# NEW ANSIBLE CONCEPTS
+# =============================================================================
+#
+#   hostvars['hostname']['variable']
+#     Access variables REGISTERED or SET on ANOTHER host.
+#     The variable must have been set (via set_fact or register) on the
+#     target host DURING THE SAME PLAYBOOK RUN.
+#
+#     How it works:
+#       1. Control plane runs 'kubeadm init' and registers the output.
+#       2. Control plane uses set_fact to create kubeadm_join_command_raw.
+#       3. Workers read it with:
+#            hostvars['control-plane-01']['kubeadm_join_command_raw']
+#
+#     IMPORTANT: hostvars is a DICT of ALL hosts' variables.
+#     It is populated by Ansible at the START of the playbook run.
+#     Variables set during the run (via register/set_fact) are ADDED
+#     to hostvars as tasks execute.
+#     So order matters — control-plane MUST run BEFORE workers.
+#
+#   ansible.builtin.wait_for:
+#     Polls a host until a condition is met (port open, file exists, etc.)
+#     Used here to wait for the control plane's API port to be reachable.
+# =============================================================================
+
+---
+# =============================================================================
+# TASK SET 1: Wait for the control plane to be ready
+# =============================================================================
+# Workers must NOT attempt to join until the control plane has finished
+# 'kubeadm init'. The wait_for module polls until the API port is open.
+#
+# The 'delegate_to' special keyword:
+#   This task runs FROM the worker host, but we delegate the CONNECTION
+#   to point at the control-plane host. The wait_for module checks if
+#   control-plane-01's port 6443 is open.
+# =============================================================================
+
+- name: Wait for control plane API to be ready
+  ansible.builtin.wait_for:
+    # The host to check (IP or hostname of the control plane)
+    host: "{{ hostvars[worker_control_plane_host].ansible_default_ipv4.address }}"
+    # The port to check (Kubernetes API port)
+    port: "{{ worker_control_plane_port }}"
+    # How long to wait before giving up
+    timeout: "{{ worker_control_plane_wait_timeout }}"
+    # How often to poll (seconds)
+    connect_timeout: 2
+  # delegate_to tells Ansible: "run this task FROM the worker, but check
+  # the connection TO the control plane"
+  delegate_to: "{{ worker_control_plane_host }}"
+  when: worker_join_cluster | bool
+  tags:
+    - worker
+    - join
+
+# =============================================================================
+# TASK 2: Retrieve the join command from the control plane
+# =============================================================================
+# This shows how workers access variables from another host.
+#
+# The flow:
+#   1. Control plane ran: set_fact kubeadm_join_command_raw="kubeadm join ..."
+#   2. That variable is now in: hostvars['control-plane-01']['kubeadm_join_command_raw']
+#   3. We copy it to THIS host's facts for convenience.
+#
+# If the join command is EMPTY (not yet initialized or already joined),
+# we fall back to reading it from the file on the control plane.
+# =============================================================================
+
+- name: Retrieve join command from control plane hostvars
+  ansible.builtin.set_fact:
+    worker_join_command: >
+      {{ hostvars[worker_control_plane_host]['kubeadm_join_command_raw'] | default('') }}
+  when:
+    - worker_join_cluster | bool
+    - hostvars[worker_control_plane_host]['kubeadm_join_command_raw'] is defined
+  tags:
+    - worker
+    - join
+
+# =============================================================================
+# TASK 3: Check if this node is already a member of the cluster
+# =============================================================================
+# Idempotency: if /etc/kubernetes/pki/ca.crt exists, this node already
+# has Kubernetes credentials and has already joined the cluster.
+# We should NOT attempt to join again.
+# =============================================================================
+
+- name: Check if node is already part of the cluster
+  ansible.builtin.stat:
+    path: /etc/kubernetes/pki/ca.crt
+  register: worker_ca_check
+  changed_when: false
+  tags:
+    - worker
+    - join
+
+# =============================================================================
+# TASK 4: Join the cluster using kubeadm join
+# =============================================================================
+# This is THE KEY TASK of the worker role.
+# It runs the 'kubeadm join' command that was generated by the control plane.
+#
+# The join command looks like:
+#   kubeadm join --token=abc123... control-plane-01:6443
+#
+# What 'kubeadm join' does:
+#   1. Authenticates with the control plane using the shared token
+#   2. Downloads the cluster CA certificate
+#   3. Generates a node-specific TLS certificate
+#   4. Registers this node as an active member of the cluster
+#   5. Writes configuration to /etc/kubernetes/
+# =============================================================================
+
+- name: Join the Kubernetes cluster
+  ansible.builtin.command:
+    cmd: "{{ worker_join_command }}"
+  become: true
+  when:
+    - worker_join_cluster | bool
+    - worker_join_command is defined
+    - worker_join_command | length > 0
+    - not worker_ca_check.stat.exists
+  register: kubeadm_join_result
+  changed_when: kubeadm_join_result.rc == 0
+  tags:
+    - worker
+    - join
+
+# =============================================================================
+# TASK 5: Handle case when join command is not available
+# =============================================================================
+# If the join command is empty (e.g. the control plane hasn't run yet,
+# or this is a re-run after already joining), we provide a helpful message.
+# =============================================================================
+
+- name: Warn if join command is not available
+  ansible.builtin.debug:
+    msg:
+      - "WARNING: Could not retrieve kubeadm join command from control plane."
+      - "Ensure the control-plane role ran FIRST and successfully initialized."
+      - "If this node has ALREADY joined, this is expected."
+  when:
+    - worker_join_command is not defined or worker_join_command | length == 0
+    - not worker_ca_check.stat.exists
+  tags:
+    - worker
+    - join
+
+# =============================================================================
+# TASK 6: Deploy kubelet configuration for worker
+# =============================================================================
+# =============================================================================
+
+- name: Ensure kubelet config directory exists
+  ansible.builtin.file:
+    path: "{{ kubelet_config_file | dirname }}"
+    state: directory
+    mode: "0755"
+  become: true
+  tags:
+    - worker
+    - config
+
+- name: Deploy kubelet worker configuration
+  ansible.builtin.template:
+    src: kubelet-worker-config.yaml.j2
+    dest: "{{ kubelet_config_file }}"
+    mode: "0644"
+  become: true
+  notify: restart kubelet
+  tags:
+    - worker
+    - config
+
+# =============================================================================
+# TASK 7: Start and enable kubelet
+# =============================================================================
+
+- name: Ensure kubelet is running and enabled
+  ansible.builtin.service:
+    name: kubelet
+    state: started
+    enabled: true
+  become: true
+  tags:
+    - worker
+    - service

@@ -1,0 +1,28 @@
+﻿# =============================================================================
+# playbooks/site.yml
+# =============================================================================
+# MASTER PLAYBOOK — runs the ENTIRE provisioning pipeline.
+#
+# Purpose:
+#   This is the SINGLE entry point that provisions the entire cluster:
+#   1. Bootstrap (OS prep)
+#   2. Kubernetes cluster (base stack + control plane + workers + CNI)
+#   3. Verify cluster health
+#
+# Usage:
+#   ansible-playbook playbooks/site.yml
+#
+# To run only specific stages:
+#   ansible-playbook playbooks/site.yml --tags bootstrap
+#   ansible-playbook playbooks/site.yml --tags kubernetes,calico
+# =============================================================================
+
+---
+- name: Stage 5 — Bootstrap OS on all nodes
+  ansible.builtin.import_playbook: bootstrap.yml
+
+- name: Stages 5-10 — Provision Kubernetes cluster
+  ansible.builtin.import_playbook: kubernetes-cluster.yml
+
+- name: Stage 11 — Verify cluster health
+  ansible.builtin.import_playbook: verify.yml

@@ -1,0 +1,46 @@
+# =============================================================================
+# roles/common/handlers/main.yml
+# =============================================================================
+# HANDLERS are special tasks that run ONLY when NOTIFIED by another task.
+#
+# Why use handlers?
+#   1. Efficiency: A handler runs ONCE at the end of the play, even if
+#      multiple tasks notify it.
+#   2. Order: All handlers run AFTER all tasks complete.
+#      This ensures the system state is consistent before restarting services.
+#   3. Idempotency: Handlers only run if a task reports 'changed'.
+#      If nothing changed, the service is NOT restarted.
+#
+# Common use cases:
+#   - Restart a service after changing its config file
+#   - Reboot after a kernel update
+#   - Reload systemd after adding a unit file
+#
+# Common mistakes:
+#   - Using handlers for tasks that MUST run immediately
+#     (use a normal task with 'meta: flush_handlers' if you need it now)
+#   - Notifying handlers from handlers
+#     (Ansible does NOT notify handlers from handlers by default)
+# =============================================================================
+
+---
+# ---------------------------------------------------------------------------
+# Handler: Reboot server
+# ---------------------------------------------------------------------------
+# Notify this handler when kernel changes require a reboot.
+# Example in tasks/main.yml: notify: reboot_server
+#
+# Because rebooting drops the SSH connection, we use the 'reboot' module
+# which handles reconnection automatically.
+# ---------------------------------------------------------------------------
+
+- name: reboot_server
+  ansible.builtin.reboot:
+    reboot_timeout: "{{ common_reboot_timeout }}"
+    connect_timeout: "{{ common_reboot_connect_timeout }}"
+    pre_reboot_delay: 15
+    post_reboot_delay: 30
+  become: true
+  listen: "reboot required"
+  # 'listen' allows multiple different notifications to trigger this handler.
+  # Tasks can notify any of these aliases. Useful for role composability.

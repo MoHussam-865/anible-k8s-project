@@ -1,0 +1,39 @@
+# =============================================================================
+# roles/containerd/meta/main.yml
+# =============================================================================
+# Metadata and dependencies for the containerd role.
+# =============================================================================
+
+---
+galaxy_info:
+  author: "DevOps Instructor"
+  description: "Install and configure containerd container runtime"
+  license: "MIT"
+  min_ansible_version: "2.14.0"
+
+  platforms:
+    - name: Ubuntu
+      versions:
+        - "22.04"
+        - "24.04"
+
+  galaxy_tags:
+    - containerd
+    - kubernetes
+    - containers
+
+# ---------------------------------------------------------------------------
+# Dependencies
+# ---------------------------------------------------------------------------
+# The containerd role depends on the 'common' role.
+# This means 'common' will ALWAYS run BEFORE 'containerd'.
+# This guarantees OS prerequisites are satisfied first.
+#
+# Best practice: declare dependencies in meta/main.yml rather than
+# relying on the playbook author to include roles in the right order.
+# ===========================================================================
+
+dependencies:
+  - role: common
+    # You can pass variables to the dependent role:
+    # run_common_role: true

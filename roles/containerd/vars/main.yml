@@ -1,0 +1,18 @@
+# =============================================================================
+# roles/containerd/vars/main.yml
+# =============================================================================
+# Internal variables for the containerd role.
+# These are NOT meant to be overridden by users.
+# =============================================================================
+
+---
+# containerd binary path (when installed from GitHub)
+containerd_binary_path: /usr/local/bin
+
+# containerd systemd unit file path (when using GitHub release)
+containerd_systemd_unit: /etc/systemd/system/containerd.service
+
+# containerd data directories
+containerd_data_dirs:
+  - /var/lib/containerd
+  - /etc/containerd

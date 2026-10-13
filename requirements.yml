@@ -1,0 +1,32 @@
+# =============================================================================
+# requirements.yml — External role dependencies (Ansible Galaxy)
+# =============================================================================
+# This file lists roles FROM ANSIBLE GALAXY that this project needs.
+#
+# Why not include them in the repo?
+#   - Separates our custom code from community roles
+#   - Roles can be updated independently
+#   - Keeps the repo smaller
+#
+# How to install:
+#   ansible-galaxy install -r requirements.yml
+#
+# Where roles are installed:
+#   ~/.ansible/roles/  (default)
+#   Or wherever 'roles_path' points to in ansible.cfg
+#
+# In this project, we write our OWN roles (common, containerd, kubernetes).
+# We have NO external dependencies yet.
+# This file exists as a pattern you would use when adding community roles.
+# =============================================================================
+
+---
+# Example: Uncomment to install a community role from Galaxy.
+# - name: geerlingguy.docker
+#   version: 6.1.0
+#
+# - name: geerlingguy.kubernetes
+#   version: 1.0.0
+
+# For now, we only use custom roles from roles/ directory.
+# Remove this file if you never use Galaxy roles.

@@ -1,0 +1,161 @@
+﻿# =============================================================================
+# roles/containerd/tasks/main.yml
+# =============================================================================
+# Install and configure containerd — the Container Runtime.
+#
+# WHY DOES KUBERNETES NEED A CONTAINER RUNTIME?
+#
+#   Kubernetes is an ORCHESTRATOR, not a runtime.
+#   It schedules WORKLOADS (pods) onto nodes, but it does NOT run them.
+#   Something must actually EXECUTE the containers.
+#
+#   containerd is that "something":
+#     - It downloads container images from a registry
+#     - It creates container sandboxes (cgroups, namespaces)
+#     - It manages container lifecycle (start, stop, restart)
+#     - It reports container health back to Kubernetes
+#
+#   Without containerd, Kubernetes is just a database of desired state
+#   with no engine to make it real.
+#
+#   ANALOGY:
+#     Kubernetes   = Air Traffic Controller (directs planes WHERE to land)
+#     containerd   = Airport Runway (the actual place where planes land)
+#
+#   Kubernetes talks to containerd via the CRI (Container Runtime Interface).
+# =============================================================================
+
+---
+# =============================================================================
+# TASK 1: Create containerd directories
+# =============================================================================
+# Before installing, ensure the required directories exist.
+# The 'file' module creates directories (like mkdir -p).
+# =============================================================================
+
+- name: Create containerd data directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+    owner: root
+    group: root
+  become: true
+  loop: "{{ containerd_data_dirs }}"
+  tags:
+    - containerd
+
+# =============================================================================
+# TASK SET 2: Install containerd (method: apt)
+# =============================================================================
+# The apt method is the SIMPLEST approach.
+# Ubuntu has containerd.io in its universe repository.
+# This is perfect for a home lab — updates are managed by apt.
+# The version may be slightly older than the GitHub release.
+# =============================================================================
+
+- name: Install containerd via apt
+  ansible.builtin.apt:
+    name: "{{ containerd_apt_package }}"
+    state: present
+    update_cache: true
+  become: true
+  when:
+    - containerd_install_method == "apt"
+    - ansible_pkg_mgr == "apt"
+  notify: restart containerd
+  tags:
+    - containerd
+    - packages
+
+# =============================================================================
+# TASK SET 3: Install containerd (method: github)
+# =============================================================================
+# The GitHub method gives you the LATEST containerd binary.
+# It requires more steps:
+#   1. Download the tarball from GitHub
+#   2. Extract it
+#   3. Copy the binary to /usr/local/bin
+#   4. Create a systemd service file
+#
+# Why use 'unarchive' module?
+#   It downloads AND extracts in ONE step.
+#   It's idempotent — if the file already exists at the destination,
+#   it checks if extraction is needed before doing it.
+# =============================================================================
+
+- name: Download and extract containerd from GitHub
+  ansible.builtin.unarchive:
+    src: "{{ containerd_github_url }}"
+    dest: "{{ containerd_binary_path }}"
+    remote_src: true
+    extra_opts:
+      - --strip-components=1
+  become: true
+  when:
+    - containerd_install_method == "github"
+    - ansible_architecture == "x86_64"
+  notify: restart containerd
+  tags:
+    - containerd
+
+# =============================================================================
+# TASK 4: Configure containerd
+# =============================================================================
+# containerd uses a YAML config file.
+# We provide a template (roles/containerd/templates/containerd_config.yml.j2)
+# that gets rendered with our variables.
+#
+# Why use a TEMPLATE instead of a static file?
+#   - Templates support Jinja2 expressions: {{ variable }}
+#   - Templates can use conditionals, loops, filters
+#   - Templates make the config DYNAMIC per environment
+#
+# The 'template' module:
+#   1. Reads the .j2 file
+#   2. Replaces all {{ variables }} with their values
+#   3. Copies the result to the destination
+#   4. Reports 'changed' if the destination file differs
+# =============================================================================
+
+- name: Deploy containerd configuration
+  ansible.builtin.template:
+    src: containerd_config.yml.j2
+    dest: "{{ containerd_config_path }}"
+    mode: "0644"
+    owner: root
+    group: root
+  become: true
+  notify: restart containerd
+  tags:
+    - containerd
+    - config
+
+# =============================================================================
+# TASK 5: Start and enable containerd service
+# =============================================================================
+# The 'service' module manages systemd services.
+#
+#   state: started   = start the service NOW (if not running)
+#   enabled: true    = enable at boot (systemctl enable)
+#
+# Why separate 'start' from 'enable'?
+#   - Ansible can start the service immediately (state: started)
+#   - AND ensure it survives reboots (enabled: true)
+#   - If you only use 'state: running', the service stops after reboot.
+#   - If you only use 'enabled: true', you must reboot to start it.
+#
+# We use a handler for RESTART (not start) because:
+#   - Initial start is always needed
+#   - Restart should only happen when config changes
+# =============================================================================
+
+- name: Ensure containerd service is running and enabled
+  ansible.builtin.service:
+    name: "{{ containerd_service_name }}"
+    state: "{{ containerd_service_state }}"
+    enabled: "{{ containerd_service_enabled }}"
+  become: true
+  tags:
+    - containerd
+    - service

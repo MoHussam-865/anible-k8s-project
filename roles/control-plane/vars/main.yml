@@ -1,0 +1,15 @@
+# =============================================================================
+# roles/control-plane/vars/main.yml
+# =============================================================================
+# Internal variables for the Control Plane role.
+# =============================================================================
+
+---
+# Temporary directory for kubeadm working files
+kubeadm_tmp_dir: /tmp/kubeadm
+
+# System paths
+kubernetes_etc_dir: /etc/kubernetes
+
+# kubelet systemd service
+kubelet_service_name: kubelet

@@ -1,0 +1,20 @@
+# =============================================================================
+# roles/control-plane/handlers/main.yml
+# =============================================================================
+# Handlers for the Control Plane role.
+# =============================================================================
+
+---
+# ---------------------------------------------------------------------------
+# Handler: restart kubelet
+# ---------------------------------------------------------------------------
+# Notified when kubelet configuration changes.
+# Restarts the kubelet service to apply the new configuration.
+# ---------------------------------------------------------------------------
+
+- name: restart kubelet
+  ansible.builtin.service:
+    name: kubelet
+    state: restarted
+  become: true
+  listen: "restart kubelet"

@@ -1,0 +1,33 @@
+# =============================================================================
+# roles/calico/meta/main.yml
+# =============================================================================
+# Metadata and dependencies for the Calico CNI role.
+# =============================================================================
+
+---
+galaxy_info:
+  author: "DevOps Instructor"
+  description: "Install and configure Calico CNI for container networking"
+  license: "MIT"
+  min_ansible_version: "2.14.0"
+
+  platforms:
+    - name: Ubuntu
+      versions:
+        - "22.04"
+        - "24.04"
+
+  galaxy_tags:
+    - kubernetes
+    - cni
+    - calico
+    - networking
+
+# ---------------------------------------------------------------------------
+# Dependencies
+# ---------------------------------------------------------------------------
+# CNI plugins run alongside containerd, so containerd must be installed first.
+# ===========================================================================
+
+dependencies:
+  - role: containerd

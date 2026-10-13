@@ -1,0 +1,33 @@
+# =============================================================================
+# roles/worker/meta/main.yml
+# =============================================================================
+# Metadata and dependencies for the Worker role.
+# =============================================================================
+
+---
+galaxy_info:
+  author: "DevOps Instructor"
+  description: "Join worker nodes to the Kubernetes cluster"
+  license: "MIT"
+  min_ansible_version: "2.14.0"
+
+  platforms:
+    - name: Ubuntu
+      versions:
+        - "22.04"
+        - "24.04"
+
+  galaxy_tags:
+    - kubernetes
+    - worker
+    - kubeadm
+
+# ---------------------------------------------------------------------------
+# Dependencies
+# ---------------------------------------------------------------------------
+# Workers need the Kubernetes binaries (kubeadm, kubelet) installed FIRST.
+# The kubernetes role provides these (and chains to containerd + common).
+# ===========================================================================
+
+dependencies:
+  - role: kubernetes

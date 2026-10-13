@@ -1,0 +1,54 @@
+﻿# =============================================================================
+# playbooks/verify.yml
+# =============================================================================
+# VERIFICATION PLAYBOOK — check cluster health after provisioning.
+#
+# Purpose:
+#   Verify that the Kubernetes cluster is healthy and all components
+#   are running correctly.
+#
+# What it checks:
+#   1. containerd service is running on ALL nodes
+#   2. kubelet service is running on ALL nodes
+#   3. kubectl get nodes returns cluster status (from control plane)
+#   4. Individual node readiness
+#
+# Usage:
+#   ansible-playbook playbooks/verify.yml
+#
+# This can be run SEPARATELY anytime to check cluster health.
+# =============================================================================
+
+---
+- name: Verify cluster health on all nodes
+  hosts: all
+  gather_facts: true
+  become: true
+
+  roles:
+    - role: verify
+      tags:
+        - verify
+
+- name: Display cluster summary
+  hosts: control-plane
+  gather_facts: false
+  become: false
+
+  tasks:
+    - name: Cluster verification summary
+      ansible.builtin.debug:
+        msg:
+          - "========================================"
+          - "Kubernetes Cluster Verification Complete"
+          - "========================================"
+          - "Control Plane: {{ groups['control-plane'] | join(', ') }}"
+          - "Workers:       {{ groups['workers'] | join(', ') }}"
+          - ""
+          - "Next steps:"
+          - "  Watch cluster: kubectl get nodes --watch"
+          - "  Check pods:    kubectl get pods --all-namespaces"
+          - "  Deploy test:   kubectl run nginx --image=nginx:alpine"
+          - "========================================"
+      tags:
+        - always

@@ -1,0 +1,26 @@
+{#
+  =============================================================================
+  roles/worker/templates/kubelet-worker-config.yaml.j2
+  =============================================================================
+  Jinja2 template for kubelet configuration on WORKER nodes.
+
+  This is simpler than the control-plane config because workers only
+  need to know how to reach the control plane.
+  =============================================================================
+#}
+
+# =============================================================================
+# kubelet configuration — Worker Node
+# Managed by Ansible — manual changes will be overwritten.
+# =============================================================================
+
+# Node type (worker nodes execute workloads)
+nodeType: "worker"
+
+# The control plane this worker reports to
+api:
+  endpoint: "https://{{ hostvars[worker_control_plane_host].ansible_default_ipv4.address }}:{{ worker_control_plane_port }}"
+
+# Pod network CIDR (must match the control plane)
+podNetwork:
+  cidr: "{{ hostvars[worker_control_plane_host].kubeadm_pod_network_cidr | default(pod_network_cidr) }}"

@@ -1,0 +1,18 @@
+﻿# =============================================================================
+# inventory/staging/group_vars/all.yml
+# =============================================================================
+# Staging environment variables.
+# These can override production defaults for dev/test VMs.
+# When using -i inventory/staging/, this file is loaded automatically.
+# =============================================================================
+
+---
+kubernetes_release: "xUbuntu_22.04"
+kubernetes_version: "stable"
+containerd_install_method: "apt"
+containerd_version: "1.7.6"
+containerd_package: "containerd.io"
+pod_network_cidr: "10.0.0.0/16"
+run_common_role: true
+run_containerd_role: true
+run_kubernetes_role: true

@@ -1,0 +1,56 @@
+{#
+  =============================================================================
+  roles/containerd/templates/containerd_config.yml.j2
+  =============================================================================
+  Jinja2 template for containerd's YAML configuration.
+
+  containerd reads this file at startup.
+  It defines:
+    - Where to store data
+    - Network configuration
+    - Logging settings
+    - Which runtime to use (runc by default)
+
+  The .j2 extension is a convention meaning "Jinja2 template".
+  Ansible recognizes this and renders it before deploying.
+
+  Jinja2 syntax:
+    {{ variable }}    — outputs the variable's value
+    {% if ... %}      — control flow (conditionals, loops)
+    {# comment #}    — comment (not included in output)
+  =============================================================================
+#}
+
+# =============================================================================
+# containerd configuration
+# =============================================================================
+# This file is managed by Ansible.
+# Manual changes will be overwritten on the next playbook run.
+# Source template: roles/containerd/templates/containerd_config.yml.j2
+# =============================================================================
+
+# Root directory for containerd data
+root: "{{ containerd_root }}"
+
+# Storage directory for container images
+state:
+  path: /var/lib/containerd/state
+
+# Logging configuration
+log:
+  # Log level: debug, info, notice, warning, error
+  level: info
+
+# Network configuration
+# containerd uses CNI (Container Networking Interface) plugins
+# to set up container networking. We point to the cni plugins directory.
+cni:
+  # Path to CNI plugin binaries
+  bin_path: /usr/lib/cni
+  # Path to CNI configuration
+  conf_path: /etc/cni/net.d
+
+# Node name — identifies this containerd instance
+# By default, containerd uses the hostname.
+# We can override it here if needed.
+# node_name: "{{ ansible_hostname }}"

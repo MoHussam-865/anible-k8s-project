@@ -1,0 +1,52 @@
+{#
+  =============================================================================
+  roles/control-plane/templates/kubelet-config.yaml.j2
+  =============================================================================
+  Jinja2 template for kubelet configuration on the CONTROL PLANE node.
+
+  kubelet reads this configuration at startup.
+  It tells kubelet:
+    - What type of node this is (control-plane or worker)
+    - What Kubernetes version to emulate
+    - Where to find the cluster CA
+    - How to register with the cluster
+
+  The .j2 extension tells Ansible this is a Jinja2 template.
+  All {{ variables }} are replaced at deployment time.
+  =============================================================================
+#}
+
+# =============================================================================
+# kubelet configuration
+# Managed by Ansible — manual changes will be overwritten.
+# Template: roles/control-plane/templates/kubelet-config.yaml.j2
+# =============================================================================
+
+# Kubernetes version this node should report
+# This value is set during the kubeadm init process.
+# kubelet --version will report this value.
+
+# ---------------------------------------------------------------------------
+# Node type
+# ---------------------------------------------------------------------------
+# Valid values:
+#   "control-plane"  — This node runs the Kubernetes API
+#   "worker"         — This node executes workloads
+# ---------------------------------------------------------------------------
+nodeType: "{{ kubernetes_role | default('control-plane') }}"
+
+# ---------------------------------------------------------------------------
+# Kubernetes API server endpoint
+# ---------------------------------------------------------------------------
+# Workers use this URL to reach the control plane API.
+# The format is: https://<ip>:<port>
+# ---------------------------------------------------------------------------
+api:
+  endpoint: "{{ kubeadm_apiserver_endpoint }}"
+  certValidityDays: {{ kubeadm_cert_days | default(3650) }}
+
+# ---------------------------------------------------------------------------
+# Pod networking
+# ---------------------------------------------------------------------------
+podNetwork:
+  cidr: "{{ kubeadm_pod_network_cidr }}"

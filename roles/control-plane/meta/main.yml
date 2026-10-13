@@ -1,0 +1,34 @@
+# =============================================================================
+# roles/control-plane/meta/main.yml
+# =============================================================================
+# Metadata and dependencies for the Control Plane role.
+# =============================================================================
+
+---
+galaxy_info:
+  author: "DevOps Instructor"
+  description: "Initialize Kubernetes control plane with kubeadm"
+  license: "MIT"
+  min_ansible_version: "2.14.0"
+
+  platforms:
+    - name: Ubuntu
+      versions:
+        - "22.04"
+        - "24.04"
+
+  galaxy_tags:
+    - kubernetes
+    - kubeadm
+    - control-plane
+
+# ---------------------------------------------------------------------------
+# Dependencies
+# ---------------------------------------------------------------------------
+# The control-plane role depends on 'kubernetes' (which chains to containerd
+# and common). This ensures kubeadm, kubelet, and kubectl are ALREADY
+# installed before we try to run 'kubeadm init'.
+# ===========================================================================
+
+dependencies:
+  - role: kubernetes

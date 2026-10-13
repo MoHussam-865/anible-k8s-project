@@ -1,0 +1,200 @@
+﻿# =============================================================================
+# roles/verify/tasks/main.yml
+# =============================================================================
+# Verify the Kubernetes cluster is healthy and all components are running.
+#
+# =============================================================================
+# NEW ANSIBLE CONCEPTS
+# =============================================================================
+#
+#   blocks + rescue + always
+#     A BLOCK groups tasks together. If ANY task in the block fails,
+#     execution jumps to the 'rescue' section (error recovery).
+#     The 'always' section runs REGARDLESS of success or failure.
+#
+#     Why use blocks?
+#       - Instead of adding 'when: result is failed' to EVERY task
+#       - Cleaner than putting everything in 'failed_when'
+#       - Rescue = error handling (like 'catch' in programming)
+#       - Always = cleanup (like 'finally' in programming)
+#
+#     Common mistakes:
+#       - Forgetting that 'rescue' replaces the normal flow
+#       - Putting rescue tasks that can ALSO fail (create infinite loop)
+#
+#   failed_when:
+#     Custom failure condition. Default: non-zero rc = failure.
+#     Here we use it to mark a service check as "failed" only when
+#     the service is explicitly stopped or masked (not just inactive).
+#
+#   ignore_errors: true
+#     Continue playbook even if this task fails.
+#     Used here so ONE node's failure doesn't block checking other nodes.
+# =============================================================================
+
+---
+# =============================================================================
+# BLOCK 1: Verify cluster services
+# =============================================================================
+# We check that containerd and kubelet are running on ALL nodes.
+# Using a block lets us handle failures gracefully.
+# =============================================================================
+
+- name: Verify cluster services
+  # ---------------------------------------------------------------------------
+  # BLOCK: tasks grouped together
+  # ---------------------------------------------------------------------------
+  block:
+    - name: Check containerd service status
+      ansible.builtin.service:
+        name: containerd
+      register: containerd_status
+      failed_when:
+        - containerd_status.state != 'running'
+        - containerd_status.state != 'started'
+      ignore_errors: "{{ not verify_fail_on_error }}"
+      tags:
+        - verify
+        - services
+
+    - name: Check kubelet service status
+      ansible.builtin.service:
+        name: kubelet
+      register: kubelet_status
+      failed_when:
+        - kubelet_status.state != 'running'
+        - kubelet_status.state != 'started'
+      ignore_errors: "{{ not verify_fail_on_error }}"
+      tags:
+        - verify
+        - services
+
+  # ---------------------------------------------------------------------------
+  # RESCUE: runs ONLY if a task in the block FAILS
+  # ---------------------------------------------------------------------------
+  rescue:
+    - name: Service check failed — collect diagnostics
+      ansible.builtin.shell:
+        cmd: |
+          echo "=== Service Status ===" &&
+          systemctl status containerd --no-pager 2>&1 | head -20 &&
+          echo "" &&
+          systemctl status kubelet --no-pager 2>&1 | head -20
+      register: diag_output
+      ignore_errors: true
+      tags:
+        - verify
+        - services
+
+    - name: Display diagnostic information
+      ansible.builtin.debug:
+        msg: "{{ diag_output.stdout_lines | default(['Diagnostics unavailable']) }}"
+      tags:
+        - verify
+        - services
+
+  # ---------------------------------------------------------------------------
+  # ALWAYS: runs REGARDLESS of block success or failure
+  # ---------------------------------------------------------------------------
+  always:
+    - name: Service verification complete
+      ansible.builtin.debug:
+        msg: "Service verification finished on {{ ansible_hostname }}."
+      tags:
+        - verify
+        - services
+
+# =============================================================================
+# BLOCK 2: Verify cluster nodes (kubectl)
+# =============================================================================
+# This must run on the CONTROL PLANE because that's where kubectl is
+# configured with the cluster credentials.
+# =============================================================================
+
+- name: Verify cluster nodes via kubectl
+  block:
+    - name: Check kubectl can talk to the cluster
+      ansible.builtin.command:
+        cmd: "{{ kubectl_binary }} get nodes"
+      register: kubectl_nodes_output
+      changed_when: false
+      failed_when:
+        - kubectl_nodes_output.rc != 0
+        - '"error" in kubectl_nodes_output.stderr | lower'
+      # delegate_to runs this task on the CONTROL PLANE host,
+      # even though the play might target 'all' nodes.
+      delegate_to: "{{ verify_control_plane_host }}"
+      tags:
+        - verify
+        - kubectl
+
+    - name: Display cluster node status
+      ansible.builtin.debug:
+        msg:
+          - "=== Kubernetes Cluster Nodes ==="
+          - "{{ kubectl_nodes_output.stdout_lines }}"
+      delegate_to: "{{ verify_control_plane_host }}"
+      tags:
+        - verify
+        - kubectl
+
+  rescue:
+    - name: kubectl failed — possible reasons
+      ansible.builtin.debug:
+        msg:
+          - "WARNING: Could not retrieve cluster nodes via kubectl."
+          - "Possible causes:"
+          - "  1. kubectl not installed (check Stage 7)"
+          - "  2. Cluster not initialized (check Stage 8)"
+          - "  3. Workers have not joined yet (check Stage 9)"
+          - "  4. kubectl config missing (run 'kubectl config set')"
+      tags:
+        - verify
+        - kubectl
+
+  always:
+    - name: Cluster verification complete
+      ansible.builtin.debug:
+        msg:
+          - "========================================"
+          - "Cluster verification finished."
+          - "Node: {{ ansible_hostname }}"
+          - "Status: {{ kubectl_nodes_output.stdout_lines | default('Node status unavailable from this host') }}"
+          - "========================================"
+      tags:
+        - verify
+        - kubectl
+
+# =============================================================================
+# BLOCK 3: Node readiness check
+# =============================================================================
+# Verify that Kubernetes reports this node as 'Ready'.
+# =============================================================================
+
+- name: Verify node readiness
+  block:
+    - name: Check if node is reported as Ready
+      ansible.builtin.command:
+        cmd: "{{ kubectl_binary }} get nodes {{ ansible_hostname }} -o json"
+      register: node_status_output
+      changed_when: false
+      failed_when: false
+      delegate_to: "{{ verify_control_plane_host }}"
+      tags:
+        - verify
+        - readiness
+
+    - name: Display node readiness
+      ansible.builtin.debug:
+        msg: "Node {{ ansible_hostname }} readiness check complete."
+      tags:
+        - verify
+        - readiness
+
+  rescue:
+    - name: Node readiness check failed
+      ansible.builtin.debug:
+        msg: "Could not verify readiness for {{ ansible_hostname }}. This is normal if the node just joined."
+      tags:
+        - verify
+        - readiness

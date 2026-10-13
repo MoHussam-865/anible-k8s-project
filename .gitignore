@@ -1,0 +1,41 @@
+# =============================================================================
+# .gitignore — what NOT to commit into version control
+# =============================================================================
+
+# Ansible .retry files (recreated on every failure)
+.retries/
+*.retry
+
+# Python bytecode (generated when modules run)
+__pycache__/
+*.pyc
+*.pyo
+
+# Editor / OS trash
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Ansible Vault backups / temp files
+*.vault.bak
+*.tmp
+
+# Molecule testing artifacts
+.molecule/
+*.log
+
+# Secrets or local-only overrides (don't commit these!)
+inventory/**/host_vars/*.vault.yml
+!inventory/**/host_vars/*.vault.example.yml
+
+# Virtual environments
+.venv/
+venv/
+*.egg-info/
+
+# SSH control sockets (created by ControlMaster)
+ssh_control_*

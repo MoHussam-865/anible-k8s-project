@@ -1,0 +1,25 @@
+{#
+  =============================================================================
+  roles/calico/templates/cni-networks.yml.j2
+  =============================================================================
+  CNI network configuration for Calico.
+  Defines the virtual network bridge for container pod networking.
+  =============================================================================
+#}
+
+# =============================================================================
+# CNI Network Configuration — Calico
+# Managed by Ansible
+# =============================================================================
+
+# The network bridge (virtual switch) that containers connect to
+bridge: "{{ cni_bridge_name }}"
+
+# The IP range for container pods
+ipRange: "{{ cni_pod_subnet }}"
+
+# Gateway IP (the host's IP on the pod network)
+gateway: "{{ cni_gateway_ip }}"
+
+# Enable NAT so containers can reach the internet through the host
+nat: true

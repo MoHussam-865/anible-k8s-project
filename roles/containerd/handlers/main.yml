@@ -1,0 +1,27 @@
+# =============================================================================
+# roles/containerd/handlers/main.yml
+# =============================================================================
+# Handlers for the containerd role.
+#
+# These handlers are notified by tasks when the containerd configuration
+# changes, ensuring the service restarts only when needed.
+# =============================================================================
+
+---
+# ---------------------------------------------------------------------------
+# Handler: Restart containerd
+# ---------------------------------------------------------------------------
+# Notified when:
+#   - containerd package is installed/updated
+#   - containerd configuration file changes
+#
+# The handler restarts containerd ONLY AT THE END OF THE PLAY.
+# This avoids restarting containerd multiple times if multiple tasks change.
+# ---------------------------------------------------------------------------
+
+- name: restart containerd
+  ansible.builtin.service:
+    name: "{{ containerd_service_name }}"
+    state: restarted
+  become: true
+  listen: "restart containerd"

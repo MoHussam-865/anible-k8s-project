@@ -1,0 +1,14 @@
+# =============================================================================
+# roles/kubernetes/vars/main.yml
+# =============================================================================
+# Internal variables for the Kubernetes role.
+# =============================================================================
+
+---
+# Paths for Kubernetes binaries
+kubeadm_binary: /usr/bin/kubeadm
+kubelet_binary: /usr/bin/kubelet
+kubectl_binary: /usr/bin/kubectl
+
+# Kubernetes apt repository keyring
+kubernetes_apt_keyring: /etc/apt/keyrings/kubernetes.gpg

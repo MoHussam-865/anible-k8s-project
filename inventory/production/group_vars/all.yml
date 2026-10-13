@@ -1,0 +1,89 @@
+﻿# =============================================================================
+# inventory/production/group_vars/all.yml
+# =============================================================================
+# Variables defined here apply to EVERY host in the inventory.
+# This is the default location for environment-wide settings.
+#
+# When Ansible loads the inventory directory, it AUTOMATICALLY reads ALL
+# files matching the pattern:  group_vars/*.yml
+# So this file (all.yml) plus control-plane.yml, workers.yml are all loaded
+# automatically every time a playbook runs.
+#
+# PRECEDENCE (this file's place):
+#   This is a GROUP variable file under the 'all' group.
+#   It has LOWER precedence than host_vars/ and group_vars/ for specific
+#   groups (control-plane, workers), but HIGHER precedence than role
+#   defaults/ and vars/.
+#
+# PRECEDENCE QUICK REFERENCE (highest to lowest):
+#   1. Extra vars (-e on command line)
+#   2. Registered vars / set_fact
+#   3. Play vars / include_vars
+#   4. host_vars/<hostname>.yml
+#   5. group_vars/<groupname>.yml  (MORE specific group = higher)
+#   6. group_vars/all.yml          # YOU ARE HERE
+#   7. Role vars/main.yml
+#   8. Role defaults/main.yml
+# =============================================================================
+
+---
+# Kubernetes Version Settings
+# ============================================================
+kubernetes_release: "xUbuntu_22.04"
+kubernetes_version: "stable"
+
+# Container Runtime
+containerd_install_method: "apt"
+containerd_version: "1.7.6"
+containerd_package: "containerd.io"
+
+# Network Settings
+pod_network_cidr: "10.0.0.0/16"
+kubernetes_api_endpoint: "{{ hostvars['control-plane-01']['ansible_default_ipv4']['address'] }}"
+
+# Kubernetes OS user
+kubernetes_user: "root"
+
+# Common packages
+common_packages:
+  - apt-transport-https
+  - ca-certificates
+  - curl
+  - software-properties-common
+  - python3-pip
+  - gnupg
+  - lsb-release
+  - htop
+  - net-tools
+  - ntpdate
+  - wget
+
+# Kernel Modules
+k8s_kernel_modules:
+  - overlay
+  - br_netfilter
+  - ip_vs
+  - ip_vs_rr
+  - ip_vs_wrr
+  - ip_vs_nq
+  - ip_vs_lblc
+  - ip_vs_lblcr
+  - ip_vs_http
+  - ip_vs_ftp
+  - ip_vs_sctp
+  - xt_connmark
+
+# sysctl Parameters
+k8s_sysctl_settings:
+  net.ipv4.ip_forward: 1
+  net.bridge.bridge-nf-call-iptables: 1
+  net.ipv4.conf.all.rp_filter: 1
+  net.core.somaxconn: 1024
+  fs.file-max: 2097152
+  vm.overcommit_memory: 1
+  vm.swappiness: 10
+
+# Feature Flags
+run_common_role: true
+run_containerd_role: true
+run_kubernetes_role: true

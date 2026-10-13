@@ -1,0 +1,12 @@
+# =============================================================================
+# roles/worker/vars/main.yml
+# =============================================================================
+# Internal variables for the Worker role.
+# =============================================================================
+
+---
+# Worker-specific kubelet config path
+kubelet_worker_config: /etc/kubernetes/kubelet/worker-config.yaml
+
+# Join command retries
+worker_max_retries: 3

@@ -1,0 +1,26 @@
+# =============================================================================
+# .ansible-lint — linting rules for ansible-lint
+# =============================================================================
+# Ansible lint enforces style and best practices.
+# Run it with:  ansible-lint playbooks/*.yml roles/*/
+#
+# We relax some rules that are too strict for a teaching project.
+# In a real production repo you would keep most rules enabled.
+# =============================================================================
+
+# Skip these rule tags:
+skip_list:
+  - schema  # role directory structure checks (we are building step by step)
+  - fqcn-builtins  # prefer built-in modules without collection prefix for clarity
+  - name[missing]  # we name all tasks, but skip pattern checks on meta
+
+# Warn (not error) on these:
+warn_list:
+  - experimental  # allow new/in-development rules
+  - role-directory-permissions  # permissions are OS-specific
+
+# Treat these as errors (non-negotiable):
+strict: True
+
+# Use the community Ansible ruleset:
+use_default_rules: True

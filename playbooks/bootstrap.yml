@@ -1,0 +1,100 @@
+﻿# =============================================================================
+# playbooks/bootstrap.yml
+# =============================================================================
+# The BOOTSTRAP playbook — run this FIRST on new servers.
+#
+# Purpose:
+#   Prepare the operating system for Kubernetes.
+#   This playbook is safe to run MULTIPLE times (idempotent).
+#
+# What it does:
+#   1. Updates all packages
+#   2. Installs baseline tools (curl, wget, gnupg, etc.)
+#   3. Disables swap
+#   4. Loads kernel modules
+#   5. Configures sysctl parameters
+#   6. Reboots if necessary
+#
+# Usage:
+#   ansible-playbook playbooks/bootstrap.yml
+#
+# To force a reboot (even if not required):
+#   ansible-playbook playbooks/bootstrap.yml --tags reboot
+# =============================================================================
+
+---
+
+# ---------------------------------------------------------------------------
+# Play definition
+# ---------------------------------------------------------------------------
+#
+#   name:
+#     Describes what this play does. Appears in the terminal output.
+#
+#   hosts: all
+#     Target EVERY host in the inventory (control-plane + workers).
+#     You could change this to 'cluster' for the same effect.
+#     You could run on just 'workers' or 'control-plane'.
+#
+#   gather_facts: true
+#     Ansible collects system info (OS, IP, memory, etc.) before running.
+#     This is needed for conditional tasks like 'reboot if kernel updated'.
+#
+#   become: true
+#     Run ALL tasks in this play as root (via sudo).
+#     Most bootstrap tasks require root: apt install, sysctl, etc.
+#
+#   vars_files:
+#     Load additional variables from YAML files.
+#     We don't need this because group_vars is loaded automatically.
+#
+#   roles:
+#     List of roles to apply to this host group.
+#     Ansible runs roles in the order listed.
+# ---------------------------------------------------------------------------
+
+- name: Bootstrap all nodes — OS preparation
+  hosts: all
+  gather_facts: true
+  become: true
+
+  # -------------------------------------------------------------------------
+  # Pre-tasks: run BEFORE any role
+  # -------------------------------------------------------------------------
+  # These tasks execute FIRST, before any role runs.
+  # Use pre_tasks for: pre-flight checks, validation, setup.
+  # -------------------------------------------------------------------------
+
+  pre_tasks:
+    - name: Ensure we are running on Ubuntu
+      ansible.builtin.fail:
+        msg: "This playbook requires Ubuntu. Detected: {{ ansible_distribution }}"
+      when: ansible_distribution != "Ubuntu"
+      tags:
+        - always
+
+  # -------------------------------------------------------------------------
+  # Roles to apply
+  # -------------------------------------------------------------------------
+  # We only run the 'common' role during bootstrap.
+  # Kubernetes and containerd are installed in the next playbook.
+  # -------------------------------------------------------------------------
+
+  roles:
+    - role: common
+      tags:
+        - common
+
+  # -------------------------------------------------------------------------
+  # Post-tasks: run AFTER all roles
+  # -------------------------------------------------------------------------
+  # These tasks execute after all roles have completed.
+  # Use post_tasks for: summary, reporting, cleanup.
+  # -------------------------------------------------------------------------
+
+  post_tasks:
+    - name: Display bootstrap completion message
+      ansible.builtin.debug:
+        msg: "Bootstrap complete. Node {{ ansible_hostname }} is ready for Kubernetes."
+      tags:
+        - always

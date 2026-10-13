@@ -1,0 +1,49 @@
+# =============================================================================
+# roles/common/vars/main.yml
+# =============================================================================
+# This is the VARS file for the common role.
+#
+# What is the difference between vars/ and defaults/ ?
+#
+#   defaults/  = lowest precedence, user-overridable, defines "safe defaults"
+#   vars/      = higher precedence, NOT meant for override by users
+#
+# When does a value go in vars/ instead of defaults/ ?
+#   1. Computed values derived from other variables
+#   2. Internal role constants that SHOULD NOT change
+#   3. Values that would BREAK THE ROLE if overridden
+#
+# Common pattern:
+#   defaults/ contains tunable parameters.
+#   vars/ contains helper constants or computed paths.
+# =============================================================================
+
+---
+# ---------------------------------------------------------------------------
+# Apt update command (platform-specific)
+# ---------------------------------------------------------------------------
+# We use 'apt-get' instead of 'apt' for scripted operations.
+# Why? apt has an unstable CLI output meant for interactive use.
+#       apt-get has a stable CLI meant for scripts.
+# ---------------------------------------------------------------------------
+
+# The update command to run
+apt_update_command: apt-get update
+
+# The upgrade command (dist-upgrade handles kernel updates better)
+apt_upgrade_command: apt-get dist-upgrade
+
+# ---------------------------------------------------------------------------
+# Reboot-required detection
+# ---------------------------------------------------------------------------
+# On Ubuntu/Debian, after certain updates, the file
+#   /var/run/reboot-required
+# is created to indicate a reboot is needed.
+# We check for this file rather than guessing.
+# ---------------------------------------------------------------------------
+
+# Path to the reboot-required sentinel file
+reboot_required_file: /var/run/reboot-required
+
+# Path to the reboot-requiredpkgs file (shows which packages caused it)
+reboot_required_pkgs_file: /var/run/reboot-requiredpkgs

@@ -1,0 +1,19 @@
+# =============================================================================
+# roles/kubernetes/handlers/main.yml
+# =============================================================================
+# Handlers for the Kubernetes role.
+# =============================================================================
+
+---
+# ---------------------------------------------------------------------------
+# Handler: Restart kubelet
+# ---------------------------------------------------------------------------
+# Restarts the kubelet service when its configuration changes.
+# ---------------------------------------------------------------------------
+
+- name: restart kubelet
+  ansible.builtin.service:
+    name: "{{ kubelet_service_name }}"
+    state: restarted
+  become: true
+  listen: "restart kubelet"

@@ -1,0 +1,108 @@
+# =============================================================================
+# roles/common/defaults/main.yml
+# =============================================================================
+# This is the DEFAULTS file for the common role.
+#
+# What are defaults?
+#   Defaults are the LOWEST precedence variables in Ansible.
+#   They define SAFE values that work out of the box.
+#   Users can override ANY of these values in:
+#     - group_vars/
+#     - host_vars/
+#     - Play vars
+#     - Extra vars (-e)
+#   WITHOUT modifying the role itself.
+#
+# Why separate defaults from vars/ ?
+#   defaults/ = "suggested values" — the user is EXPECTED to override them.
+#   vars/     = "internal values" — the role author assumes they stay as-is.
+#
+# Best practice:
+#   Put EVERY tunable parameter in defaults/.
+#   Put computed/derived or hidden values in vars/.
+# =============================================================================
+
+---
+# ---------------------------------------------------------------------------
+# Package update behaviour
+# ---------------------------------------------------------------------------
+# Controls whether 'apt update' runs before package installation.
+# In production you may want to pin this to False and manage updates
+# separately. In a lab, keep it True for simplicity.
+# ---------------------------------------------------------------------------
+
+# Whether to run 'apt-get update' at the start of the role
+common_run_apt_update: true
+
+# Cache timeout in seconds — Ansible will skip 'apt update' if the
+# package cache is newer than this. Reduces run time on repeated runs.
+common_apt_cache_timeout: 3600
+
+# ---------------------------------------------------------------------------
+# Swap configuration
+# ---------------------------------------------------------------------------
+# Kubernetes requires swap to be DISABLED for best performance.
+# The kubelet will warn/error if swap is on.
+#
+# Why disable swap?
+#   Containers are designed to manage their own memory.
+#   If Kubernetes swaps container memory to disk, performance degrades.
+#   Kubernetes expects to manage memory allocation directly.
+# ---------------------------------------------------------------------------
+
+# Set to 'yes' to disable all swap partitions/swap files
+common_disable_swap: true
+
+# ---------------------------------------------------------------------------
+# Reboot behaviour
+# ---------------------------------------------------------------------------
+# After changing kernel parameters or kernel modules, a reboot may be needed.
+# This is most common after a kernel update (from apt upgrade).
+# ---------------------------------------------------------------------------
+
+# Whether to reboot if a reboot is required (detected via /var/run/reboot-required)
+common_reboot_if_required: true
+
+# Time to wait after sending the reboot command (seconds)
+common_reboot_timeout: 120
+
+# Time to wait for the server to come back online after reboot
+common_reboot_connect_timeout: 60
+
+# ---------------------------------------------------------------------------
+# sysctl management
+# ---------------------------------------------------------------------------
+# These are FALLBACK defaults.
+# They will be OVERRIDDEN by group_vars/all.yml (k8s_sysctl_settings).
+# They exist here so the role works even without group_vars defined.
+# ---------------------------------------------------------------------------
+
+# If group_vars does NOT define k8s_sysctl_settings, these defaults apply:
+common_sysctl_settings:
+  net.ipv4.ip_forward: 1
+  net.bridge.bridge-nf-call-iptables: 1
+  vm.swappiness: 10
+
+# Path where sysctl configuration is written
+common_sysctl_path: /etc/sysctl.d/k8s.conf
+
+# ---------------------------------------------------------------------------
+# Kernel modules management
+# ---------------------------------------------------------------------------
+common_kernel_modules_path: /etc/modules-load.d/k8s.conf
+
+# ---------------------------------------------------------------------------
+# Package management
+# ---------------------------------------------------------------------------
+# If group_vars does NOT define common_packages, these are the fallback.
+# In a real project, you'd define common_packages in group_vars/all.yml.
+# ---------------------------------------------------------------------------
+
+common_default_packages:
+  - apt-transport-https
+  - ca-certificates
+  - curl
+  - software-properties-common
+  - python3-pip
+  - gnupg
+  - wget

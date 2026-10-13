@@ -1,0 +1,56 @@
+# =============================================================================
+# roles/common/meta/main.yml
+# =============================================================================
+# The META directory contains ROLE METADATA.
+# This is NOT the task list — it's information ABOUT the role.
+#
+# What goes in meta/main.yml:
+#   - galaxy_info: author, license, platforms, min_ansible_version
+#   - dependencies: other roles this role depends on
+#
+# Why dependencies matter:
+#   When you declare a dependency, Ansible runs the DEPENDENT role FIRST.
+#   This guarantees that prerequisites are met before your role runs.
+#   For example, if 'kubernetes' depends on 'common', then 'common' runs
+#   before 'kubernetes' automatically.
+#
+# Dependencies are resolved RECURSIVELY (dependency of dependency).
+# They also respect the 'allow_duplicates' flag — if two roles both depend
+# on 'common', it runs only ONCE (unless duplicates are allowed).
+# =============================================================================
+
+---
+# ---------------------------------------------------------------------------
+# galaxy_info
+# ---------------------------------------------------------------------------
+# This metadata is used by Ansible Galaxy when publishing the role.
+# In a teaching project it documents what the role supports.
+# ---------------------------------------------------------------------------
+
+galaxy_info:
+  author: "DevOps Instructor"
+  description: "Common OS preparation for Kubernetes nodes"
+  license: "MIT"
+  min_ansible_version: "2.14.0"
+
+  # List of supported platforms
+  platforms:
+    - name: Ubuntu
+      versions:
+        - "22.04"
+        - "24.04"
+
+  # Tags help users find roles on Ansible Galaxy
+  galaxy_tags:
+    - kubernetes
+    - system
+    - preparation
+
+# ---------------------------------------------------------------------------
+# dependencies
+# ---------------------------------------------------------------------------
+# The common role has NO dependencies — it is the FOUNDATION.
+# Other roles will depend on THIS role.
+# ---------------------------------------------------------------------------
+
+dependencies: []

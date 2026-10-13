@@ -1,0 +1,267 @@
+﻿# =============================================================================
+# roles/common/tasks/main.yml
+# =============================================================================
+# This file contains ALL the tasks for the Common role.
+#
+# Ansible automatically loads tasks/main.yml when a role is included.
+# You do NOT need to specify a file name — Ansible looks for:
+#   roles/<role>/tasks/main.yml
+#
+# The tasks run IN ORDER from top to bottom (unless a 'when' skips one).
+# =============================================================================
+
+---
+# =============================================================================
+# TASK 1: Update APT package cache
+# =============================================================================
+# This runs 'apt update' to refresh the list of available packages.
+# On a fresh Ubuntu install this ensures we install the latest versions.
+#
+# Why use 'apt' module instead of raw shell command?
+#   - The 'apt' module is idempotent (safe to run repeatedly)
+#   - It reports 'changed' only when updates are actually downloaded
+#   - Ansible knows how to handle its output properly
+# =============================================================================
+
+- name: Update apt package cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: "{{ common_apt_cache_timeout }}"
+  when: common_run_apt_update | bool
+  tags:
+    - common
+    - packages
+
+# =============================================================================
+# TASK 2: Install required baseline packages
+# =============================================================================
+# This installs common_packages if defined in group_vars, otherwise
+# falls back to common_default_packages from defaults/main.yml.
+#
+# Key Ansible concepts used here:
+#
+#   name: "{{ item }}"
+#     This is a loop. Each package in the list is installed one by one.
+#
+#   loop: "{{ common_packages | default(common_default_packages) }}"
+#     'common_packages' comes from group_vars/all.yml (if defined).
+#     If it's NOT defined, the 'default' filter falls back to
+#     common_default_packages from defaults/main.yml.
+#     This is the standard pattern for optional variable overrides.
+#
+#   become: true
+#     'become' means "run this task as root (via sudo)".
+#     Installing packages requires root privileges.
+#     Without 'become: true' this task would FAIL.
+#
+#   state: present
+#     Means "this package should exist on the system".
+#     Other options: 'latest' (always upgrade), 'absent' (uninstall).
+#     For production you want 'present' or a specific version, NOT 'latest',
+#     because 'latest' may introduce unexpected upgrades.
+# =============================================================================
+
+- name: Install baseline packages
+  ansible.builtin.apt:
+    name: "{{ item }}"
+    state: present
+  become: true
+  loop: "{{ common_packages | default(common_default_packages) }}"
+  tags:
+    - common
+    - packages
+
+# =============================================================================
+# TASK 3: Disable swap
+# =============================================================================
+# Kubernetes REQUIRES swap to be disabled.
+# Why? Kubernetes manages container memory directly.
+#   If the OS swaps out container memory, performance becomes unpredictable.
+#   kubelet will emit warnings (or fail) if swap is enabled.
+#
+# This task does TWO things:
+#   1. 'swapoff -a' disables ALL active swap volumes immediately (runtime)
+#   2. Commenting out swap lines in /etc/fstab prevents re-enable on reboot
+#
+# The 'replace' module edits /etc/fstab without modifying the rest of the file.
+# This is safer than using sed or lineinfile with fragile regex.
+# =============================================================================
+
+- name: Disable swap (runtime)
+  ansible.builtin.command:
+    cmd: swapoff --all
+  become: true
+  when: common_disable_swap | bool
+  changed_when: false
+  tags:
+    - common
+    - swap
+
+- name: Remove swap entries from /etc/fstab
+  ansible.builtin.replace:
+    path: /etc/fstab
+    regexp: '^([^#].*\sswap\s.*)'
+    replace: '# \\1'
+  become: true
+  when: common_disable_swap | bool
+  tags:
+    - common
+    - swap
+
+# =============================================================================
+# TASK 4: Load kernel modules
+# =============================================================================
+# Kubernetes and containerd need certain kernel modules loaded.
+# These are persisted across reboots via /etc/modules-load.d/k8s.conf
+#
+# Key Ansible concepts:
+#
+#   ansible.builtin.lineinfile:
+#     Ensures a specific LINE exists in a file.
+#     Creates the file if it doesn't exist.
+#     Does NOT touch other lines.
+#
+#   loop: "{{ k8s_kernel_modules | default([]) }}"
+#     If k8s_kernel_modules is defined in group_vars, use it.
+#     If not, use an empty list (harmless).
+#
+#   ansible.builtin.modprobe:
+#     Loads the module IMMEDIATELY (runtime).
+#     Without this, the module would only load after reboot.
+# =============================================================================
+
+- name: Ensure kernel module persistence file exists
+  ansible.builtin.file:
+    path: "{{ common_kernel_modules_path }}"
+    state: touch
+    mode: "0644"
+  become: true
+  changed_when: false
+  tags:
+    - common
+    - kernel
+
+- name: Add kernel modules to persist across reboots
+  ansible.builtin.lineinfile:
+    path: "{{ common_kernel_modules_path }}"
+    line: "{{ item }}"
+    create: false
+  become: true
+  loop: "{{ k8s_kernel_modules | default([]) }}"
+  tags:
+    - common
+    - kernel
+
+- name: Load kernel modules immediately
+  ansible.builtin.modprobe:
+    name: "{{ item }}"
+    state: present
+  become: true
+  loop: "{{ k8s_kernel_modules | default([]) }}"
+  ignore_errors: true
+  tags:
+    - common
+    - kernel
+
+# =============================================================================
+# TASK 5: Configure sysctl parameters
+# =============================================================================
+# sysctl parameters are Linux kernel settings.
+# Kubernetes requires specific values for networking, filesystem, etc.
+#
+# We use the 'sysctl' module which:
+#   1. Applies the value immediately (runtime)
+#   2. Writes it to the config file (persistent)
+#
+# Alternative: We could write a template to /etc/sysctl.d/k8s.conf
+# and then run 'sysctl -p'. But the 'sysctl' module handles both steps.
+# =============================================================================
+
+- name: Apply sysctl parameters for Kubernetes
+  ansible.builtin.sysctl:
+    name: "{{ item.key }}"
+    value: "{{ item.value }}"
+    sysctl_file: "{{ common_sysctl_path }}"
+    state: present
+    reload: true
+  become: true
+  loop: "{{ k8s_sysctl_settings | default(common_sysctl_settings) | dict2items }}"
+  tags:
+    - common
+    - sysctl
+
+# =============================================================================
+# TASK 6: Check if reboot is required
+# =============================================================================
+# On Ubuntu, some kernel updates create /var/run/reboot-required.
+# We use the 'stat' module to check if this file exists.
+#
+# Key Ansible concepts:
+#
+#   ansible.builtin.stat:
+#     Gets FILE STATUS (exists, size, modification time, etc.)
+#     WITHOUT reading the file content.
+#     Stores the result in a variable (register).
+#
+#   register: reboot_required_file_check
+#     Saves the output of this task into a VARIABLE named
+#     'reboot_required_file_check'.
+#     We can access its fields like:
+#       reboot_required_file_check.stat.exists
+#
+#   changed_when: false
+#     Tells Ansible "this task is informational only — never mark as changed".
+#     Checking if a file exists is NOT a change.
+# =============================================================================
+
+- name: Check if reboot is required
+  ansible.builtin.stat:
+    path: "{{ reboot_required_file }}"
+  register: reboot_required_file_check
+  changed_when: false
+  tags:
+    - common
+    - reboot
+
+# =============================================================================
+# TASK 7: Reboot if necessary
+# =============================================================================
+# If the stat check found /var/run/reboot-required, we reboot.
+#
+# Why use a handler instead of doing this inline?
+#   Handlers run at the END of a play, NOT in the middle of tasks.
+#   This gives all tasks a chance to finish before the reboot.
+#   Handlers also deduplicate — if multiple tasks notify the same handler,
+#   it runs only ONCE.
+#
+# But wait... a REBOOT in a handler is tricky because:
+#   1. The handler runs at the END of the play.
+#   2. After reboot, Ansible loses the SSH connection.
+#   3. The play fails because it can't reconnect.
+#
+# Solution: We use the 'reboot' module which:
+#   - Sends the reboot command
+#   - WAITS for the server to go offline
+#   - POLLS until the server comes back ONLINE
+#   - Resumes playbook execution after reconnection
+# =============================================================================
+
+- name: Reboot if required
+  ansible.builtin.reboot:
+    reboot_timeout: "{{ common_reboot_timeout }}"
+    connect_timeout: "{{ common_reboot_connect_timeout }}"
+    pre_reboot_delay: 15
+    post_reboot_delay: 30
+  become: true
+  when:
+    - common_reboot_if_required | bool
+    - reboot_required_file_check.stat.exists
+  tags:
+    - common
+    - reboot
+    - never
+  # The 'never' tag means this task is SKIPPED unless you explicitly
+  # request it with: ansible-playbook ... --tags reboot
+  # This prevents unexpected reboots during testing.
+  # To force a reboot run:
+  #   ansible-playbook playbooks/bootstrap.yml --tags reboot

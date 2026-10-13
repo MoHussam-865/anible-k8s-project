@@ -1,0 +1,146 @@
+﻿# =============================================================================
+# playbooks/kubernetes-cluster.yml
+# =============================================================================
+# The MAIN Kubernetes provisioning playbook — Stages 5-10.
+#
+# Purpose:
+#   Run the FULL provisioning pipeline:
+#   - Common OS prep (common role)
+#   - Container runtime (containerd role)
+#   - Kubernetes binaries (kubernetes role)
+#   - Control plane init (control-plane role)
+#   - Worker join (worker role)
+#   - CNI networking (calico role)
+#
+# Usage:
+#   ansible-playbook playbooks/kubernetes-cluster.yml
+#
+# Play order matters:
+#   Play 1: ALL nodes — install base stack (common → containerd → kubernetes)
+#   Play 2: control-plane — run kubeadm init, extract join token
+#   Play 3: workers — run kubeadm join using the token from play 2
+#   Play 4: ALL nodes — install CNI (Calico) for pod networking
+#
+# Why this order?
+#   - kubeadm init MUST run BEFORE kubeadm join (obviously)
+#   - CNI can run anytime after containerd is installed
+#   - We split into 4 plays to ensure execution order
+# =============================================================================
+
+---
+# =============================================================================
+# PLAY 1: Install base stack on ALL nodes
+# =============================================================================
+# This runs the kubernetes role, which has a dependency chain:
+#   kubernetes -> containerd -> common
+# All three roles execute in order on every host.
+# =============================================================================
+
+- name: PLAY 1 — Install base stack (common + containerd + kubernetes)
+  hosts: all
+  gather_facts: true
+  become: true
+
+  pre_tasks:
+    - name: Display provisioning target
+      ansible.builtin.debug:
+        msg: "Provisioning {{ ansible_hostname }} as a Kubernetes {{ kubernetes_role | default('node') }}."
+      tags:
+        - always
+
+  roles:
+    - role: kubernetes
+      tags:
+        - kubernetes
+
+  post_tasks:
+    - name: Base stack installed
+      ansible.builtin.debug:
+        msg: "Base stack installed on {{ ansible_hostname }}."
+      tags:
+        - always
+
+# =============================================================================
+# PLAY 2: Initialize control plane
+# =============================================================================
+# Runs ONLY on the control-plane group.
+# 'kubeadm init' bootstraps the cluster and generates the join command.
+# The join command is captured via register and shared via set_fact.
+# =============================================================================
+
+- name: PLAY 2 — Initialize control plane with kubeadm
+  hosts: control-plane
+  gather_facts: true
+  become: true
+
+  roles:
+    - role: control-plane
+      tags:
+        - control-plane
+
+  post_tasks:
+    - name: Control plane initialized
+      ansible.builtin.debug:
+        msg: "Control plane {{ ansible_hostname }} initialized."
+      tags:
+        - always
+
+# =============================================================================
+# PLAY 3: Join workers to the cluster
+# =============================================================================
+# Runs ONLY on the workers group.
+# Each worker retrieves the join command from the control plane (via hostvars)
+# and runs 'kubeadm join' to attach to the cluster.
+# =============================================================================
+
+- name: PLAY 3 — Join workers to the cluster
+  hosts: workers
+  gather_facts: true
+  become: true
+
+  pre_tasks:
+    - name: Wait for control plane to be ready
+      ansible.builtin.wait_for:
+        host: "{{ hostvars[groups['control-plane'][0]].ansible_default_ipv4.address }}"
+        port: "{{ kubernetes_api_port | default('6443') }}"
+        timeout: 120
+        connect_timeout: 2
+      delegate_to: "{{ groups['control-plane'][0] }}"
+      tags:
+        - worker
+
+  roles:
+    - role: worker
+      tags:
+        - worker
+
+  post_tasks:
+    - name: Worker joined
+      ansible.builtin.debug:
+        msg: "Worker {{ ansible_hostname }} has joined the cluster."
+      tags:
+        - always
+
+# =============================================================================
+# PLAY 4: Install CNI networking (Calico) on ALL nodes
+# =============================================================================
+# Pods need network connectivity to communicate. We install Calico CNI
+# which provides the virtual network bridge.
+# =============================================================================
+
+- name: PLAY 4 — Install CNI networking (Calico)
+  hosts: all
+  gather_facts: true
+  become: true
+
+  roles:
+    - role: calico
+      tags:
+        - calico
+
+  post_tasks:
+    - name: CNI networking installed
+      ansible.builtin.debug:
+        msg: "Calico CNI installed on {{ ansible_hostname }}."
+      tags:
+        - always

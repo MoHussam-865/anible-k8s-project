@@ -1,0 +1,52 @@
+﻿# =============================================================================
+# roles/kubernetes/defaults/main.yml
+# =============================================================================
+# Default variables for the Kubernetes role.
+# =============================================================================
+
+---
+# ---------------------------------------------------------------------------
+# Kubernetes version / release channel
+# ---------------------------------------------------------------------------
+# The Kubernetes apt repository organizes packages by release channel.
+# Common channels: stable, beta, nightly
+# ---------------------------------------------------------------------------
+
+kubernetes_release: "xUbuntu_22.04"
+kubernetes_version: "stable"
+
+# The full apt repository URL
+kubernetes_apt_repo: "deb https://download.kubernetes.io/kubernetes/{{ kubernetes_release }}/deb/ /"
+
+# GPG key URL for the Kubernetes apt repository
+kubernetes_apt_key: "https://pkgs.k8s.io/core:/kubernetes/{{ kubernetes_release }}/deb/Release.key"
+
+# ---------------------------------------------------------------------------
+# Packages to install
+# ---------------------------------------------------------------------------
+kubernetes_packages:
+  - kubeadm
+  - kubelet
+  - kubectl
+
+# ---------------------------------------------------------------------------
+# Hold packages at current version (prevent accidental upgrades)
+# ---------------------------------------------------------------------------
+kubernetes_hold_packages: false
+
+# ---------------------------------------------------------------------------
+# kubelet service settings
+# ---------------------------------------------------------------------------
+kubelet_service_name: kubelet
+kubelet_service_state: started
+kubelet_service_enabled: true
+
+# ---------------------------------------------------------------------------
+# kubelet configuration
+# ---------------------------------------------------------------------------
+kubelet_config_path: /etc/default/kubelet
+
+# ---------------------------------------------------------------------------
+# Additional Kubernetes tools
+# ---------------------------------------------------------------------------
+kubernetes_extra_packages: []

@@ -1,0 +1,20 @@
+﻿# =============================================================================
+# group_vars/all.yml (root level)
+# =============================================================================
+# This is an ALTERNATIVE location for group_vars.
+# Ansible searches in this order when inventory is a DIRECTORY:
+#   1. inventory/<env>/group_vars/      (highest precedence among group vars)
+#   2. group_vars/ (root level)          (lower precedence)
+#
+# Why have both?
+#   - inventory/<env>/group_vars/  = per-environment variables (the normal place)
+#   - group_vars/ (root)           = fallback defaults shared across all envs
+#
+# In practice, most teams put everything in inventory/<env>/group_vars/.
+# This root group_vars/ exists as a safety net for shared defaults.
+# =============================================================================
+
+---
+# If a variable is NOT defined in inventory/production/group_vars/all.yml
+# but IS defined here, Ansible will find it here.
+# This allows sharing defaults across production/staging/dev.

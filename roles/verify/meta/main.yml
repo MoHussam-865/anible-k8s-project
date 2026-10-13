@@ -1,0 +1,31 @@
+# =============================================================================
+# roles/verify/meta/main.yml
+# =============================================================================
+# Metadata for the Verification role.
+# =============================================================================
+
+---
+galaxy_info:
+  author: "DevOps Instructor"
+  description: "Verify Kubernetes cluster health"
+  license: "MIT"
+  min_ansible_version: "2.14.0"
+
+  platforms:
+    - name: Ubuntu
+      versions:
+        - "22.04"
+        - "24.04"
+
+  galaxy_tags:
+    - kubernetes
+    - verify
+    - healthcheck
+
+# ---------------------------------------------------------------------------
+# Dependencies
+# ---------------------------------------------------------------------------
+# Verification depends on nothing — it just reads system state.
+# ===========================================================================
+
+dependencies: []

@@ -1,0 +1,38 @@
+# =============================================================================
+# roles/kubernetes/meta/main.yml
+# =============================================================================
+# Metadata and dependencies for the Kubernetes role.
+# =============================================================================
+
+---
+galaxy_info:
+  author: "DevOps Instructor"
+  description: "Install Kubernetes components (kubeadm, kubelet, kubectl)"
+  license: "MIT"
+  min_ansible_version: "2.14.0"
+
+  platforms:
+    - name: Ubuntu
+      versions:
+        - "22.04"
+        - "24.04"
+
+  galaxy_tags:
+    - kubernetes
+    - kubeadm
+    - kubelet
+    - kubectl
+
+# ---------------------------------------------------------------------------
+# Dependencies
+# ---------------------------------------------------------------------------
+# Kubernetes depends on containerd (the container runtime).
+# containerd in turn depends on common (OS preparation).
+# Ansible resolves this chain automatically:
+#   1. common (dependency of containerd)
+#   2. containerd (dependency of kubernetes)
+#   3. kubernetes (this role)
+# ===========================================================================
+
+dependencies:
+  - role: containerd

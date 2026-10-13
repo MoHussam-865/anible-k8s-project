@@ -1,0 +1,17 @@
+# =============================================================================
+# roles/calico/vars/main.yml
+# =============================================================================
+# Internal variables for the Calico CNI role.
+# =============================================================================
+
+---
+# List of CNI plugin binaries needed
+calico_cni_plugins:
+  - calico
+  - calico-ip6
+  - flannel
+  - loopback
+  - portmap
+
+# containerd CNI configuration path (to add our plugin)
+containerd_cni_conf: /etc/containerd/config.yml

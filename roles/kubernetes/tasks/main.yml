@@ -1,0 +1,238 @@
+﻿# =============================================================================
+# roles/kubernetes/tasks/main.yml
+# =============================================================================
+# Install Kubernetes components: kubeadm, kubelet, kubectl.
+#
+# =============================================================================
+# WHY DOES KUBEADM EXIST?
+# =============================================================================
+#
+# Kubernetes is a DISTRIBUTED SYSTEM. Setting up a cluster manually requires:
+#   1. Generate TLS certificates for secure communication
+#   2. Create a shared secret for node authentication
+#   3. Bootstrap the first control plane (init)
+#   4. Generate a join command for worker nodes
+#   5. Configure kubelet on every node to point to the control plane
+#
+# kubeadm automates ALL of this. It is the OFFICIAL Kubernetes tool for
+# bootstrapping clusters. Without kubeadm, setting up a cluster requires
+# dozens of manual steps that are easy to get wrong.
+#
+# kubeadm does:
+#   - 'kubeadm init' on the first control plane
+#   - 'kubeadm join' on workers (uses the token from init)
+#   - Certificate management
+#   - Configuration generation
+#
+# =============================================================================
+# WHY IS KUBELET DIFFERENT FROM KUBECTL?
+# =============================================================================
+#
+# kubelet = The NODE AGENT. One runs on EVERY node in the cluster.
+#   - Reports node health to the control plane
+#   - Receives pod assignments from the control plane
+#   - Communicates with containerd to start/stop containers
+#   - Runs as a SYSTEM SERVICE (systemd)
+#
+# kubectl = The CLI TOOL. You run it on-demand (not as a service).
+#   - Sends REST API calls to the control plane
+#   - Does NOT run continuously
+#   - Used for: checking status, deploying pods, viewing logs
+#
+# ANALOGY:
+#   kubelet  = factory worker (always running, receives orders)
+#   kubectl  = inspection tool (used when you need to check something)
+#
+# Both are PART OF Kubernetes, but they have completely different roles.
+# kubelet is INSTALLED ON EVERY NODE.
+# kubectl is typically installed on admin workstations and the control plane.
+# =============================================================================
+
+---
+# =============================================================================
+# TASK 1: Add Kubernetes APT repository GPG key
+# =============================================================================
+# APT repositories are signed with GPG keys.
+# We must add the Kubernetes official GPG key to trust the repository.
+#
+# The 'get_url' module downloads the key file.
+# The 'apt_key' module adds it to apt's trusted keys.
+#
+# Why add a GPG key?
+#   Without it, apt refuses to install packages from the Kubernetes repo.
+#   This is a security measure — it ensures packages come from Kubernetes
+#   and haven't been tampered with.
+# =============================================================================
+
+- name: Download Kubernetes APT GPG key
+  ansible.builtin.get_url:
+    url: "{{ kubernetes_apt_key }}"
+    dest: "{{ kubernetes_apt_keyring }}"
+    mode: "0644"
+  become: true
+  tags:
+    - kubernetes
+    - repository
+
+# =============================================================================
+# TASK 2: Add Kubernetes APT repository
+# =============================================================================
+# The 'apt_repository' module adds a repository source to /etc/apt/sources.list
+# or creates a .list file in /etc/apt/sources.list.d/
+# =============================================================================
+
+- name: Add Kubernetes apt repository
+  ansible.builtin.apt_repository:
+    repo: "{{ kubernetes_apt_repo }}"
+    state: present
+    filename: kubernetes
+    update_cache: true
+  become: true
+  tags:
+    - kubernetes
+    - repository
+
+# =============================================================================
+# TASK 3: Install Kubernetes packages
+# =============================================================================
+# Installs kubeadm, kubelet, and kubectl from the Kubernetes repo.
+#
+# Key concepts:
+#
+#   loop: "{{ kubernetes_packages }}"
+#     Loops over ['kubeadm', 'kubelet', 'kubectl'], installing each.
+#
+#   state: present
+#     Ensures the package is installed but does NOT upgrade it.
+#     For production, pin to a specific version like "1.28.0-*"
+#     to prevent accidental upgrades:
+#       name: "{{ item }}=1.28.0-*"
+#
+#   register: install_result
+#     Saves the task result (changed, failed, etc.) for later use.
+# =============================================================================
+
+- name: Install kubernetes packages (kubeadm, kubelet, kubectl)
+  ansible.builtin.apt:
+    name: "{{ item }}"
+    state: present
+    update_cache: false
+  become: true
+  loop: "{{ kubernetes_packages }}"
+  register: install_result
+  tags:
+    - kubernetes
+    - packages
+
+# =============================================================================
+# TASK 4: Install extra Kubernetes packages (if defined)
+# =============================================================================
+# If kubernetes_extra_packages is not empty, install them too.
+# Useful for adding tools like kubernetes-client or kubernetes-cni-plugins.
+# =============================================================================
+
+- name: Install extra kubernetes packages
+  ansible.builtin.apt:
+    name: "{{ item }}"
+    state: present
+    update_cache: false
+  become: true
+  loop: "{{ kubernetes_extra_packages }}"
+  when: kubernetes_extra_packages | length > 0
+  tags:
+    - kubernetes
+    - packages
+
+# =============================================================================
+# TASK 5: Hold Kubernetes packages (prevent accidental upgrades)
+# =============================================================================
+# The 'dpkg' module can hold packages at their current version.
+# This prevents 'apt upgrade' from updating Kubernetes unintentionally.
+# In production, you ALWAYS control when Kubernetes is upgraded.
+# =============================================================================
+
+- name: Hold kubernetes packages to prevent accidental upgrades
+  ansible.builtin.dpkg_selections:
+    name: "{{ item }}"
+    selection: hold
+  become: true
+  loop: "{{ kubernetes_packages }}"
+  when: kubernetes_hold_packages | bool
+  tags:
+    - kubernetes
+    - packages
+
+# =============================================================================
+# TASK 6: Configure kubelet defaults
+# =============================================================================
+# The kubelet needs basic configuration BEFORE it starts.
+# At minimum, it needs to know what Kubernetes version to emulate.
+# The full kubelet config (which control plane to join) is set later.
+# =============================================================================
+
+- name: Ensure /etc/default/kubelet directory exists
+  ansible.builtin.file:
+    path: "{{ kubelet_config_path | dirname }}"
+    state: directory
+    mode: "0755"
+  become: true
+  tags:
+    - kubernetes
+    - config
+
+- name: Create kubelet default configuration
+  ansible.builtin.copy:
+    content: |
+      # kubelet configuration
+      # Managed by Ansible
+      KUBELET_EXTRA_ARGS=""
+    dest: "{{ kubelet_config_path }}"
+    mode: "0644"
+  become: true
+  notify:
+    - restart kubelet
+  tags:
+    - kubernetes
+    - config
+
+# =============================================================================
+# TASK 7: Start and enable kubelet service
+# =============================================================================
+# kubelet runs as a systemd service.
+# We start it now and enable it for boot persistence.
+#
+# In a real run, kubelet will FAIL to start at this point because
+# it has not been initialized (kubeadm init / kubeadm join).
+# That is EXPECTED. The initialization happens in stages 8 and 9.
+# We still WANT the service installed and configured so that
+# kubeadm can start it when ready.
+# =============================================================================
+
+- name: Start and enable kubelet service
+  ansible.builtin.service:
+    name: "{{ kubelet_service_name }}"
+    state: "{{ kubelet_service_state }}"
+    enabled: "{{ kubelet_service_enabled }}"
+  become: true
+  ignore_errors: true
+  tags:
+    - kubernetes
+    - service
+
+# =============================================================================
+# TASK 8: Verify kubectl is installed
+# =============================================================================
+# Quick verification that kubectl is available and executable.
+# We use the 'command' module to run 'kubectl version'.
+# The 'register' keyword captures the output for verification.
+# =============================================================================
+
+- name: Verify kubectl is installed
+  ansible.builtin.command:
+    cmd: kubectl version
+  register: kubectl_version_output
+  changed_when: false
+  check_mode: false
+  tags:
+    - kubernetes
+    - verify

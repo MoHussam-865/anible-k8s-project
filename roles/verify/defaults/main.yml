@@ -1,0 +1,31 @@
+# =============================================================================
+# roles/verify/defaults/main.yml
+# =============================================================================
+# Default variables for the Verification role.
+# =============================================================================
+
+---
+# ---------------------------------------------------------------------------
+# Verification behaviour
+# ---------------------------------------------------------------------------
+
+# Fail the playbook if any verification check fails?
+# true  = playbook stops on first failure
+# false = playbook continues, reports all failures at end
+verify_fail_on_error: false
+
+# Path to kubectl binary
+kubectl_binary: /usr/bin/kubectl
+
+# Control plane hostname (for running kubectl commands)
+verify_control_plane_host: "{{ groups['control-plane'][0] }}"
+
+# ---------------------------------------------------------------------------
+# Service check list
+# ---------------------------------------------------------------------------
+
+verify_services:
+  - name: containerd
+    host_group: all
+  - name: kubelet
+    host_group: all

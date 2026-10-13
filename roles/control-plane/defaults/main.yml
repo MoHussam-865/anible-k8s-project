@@ -1,0 +1,37 @@
+# =============================================================================
+# roles/control-plane/defaults/main.yml
+# =============================================================================
+# Default variables for the Control Plane role.
+# =============================================================================
+
+---
+# ---------------------------------------------------------------------------
+# kubeadm init options
+# ---------------------------------------------------------------------------
+# These are the flags passed to 'kubeadm init' when bootstrapping.
+# Each option is explained in tasks/main.yml where it's used.
+# ---------------------------------------------------------------------------
+
+# Pod network CIDR — the subnet used for container-to-container traffic
+kubeadm_pod_network_cidr: "{{ pod_network_cidr | default('10.0.0.0/16') }}"
+
+# API server endpoint — the IP:port workers use to reach the control plane
+kubeadm_apiserver_endpoint: "https://{{ ansible_default_ipv4.address }}:{{ kubernetes_api_port | default('6443') }}"
+
+# Directory where kubeadm stores cluster certificates and config
+kubeadm_data_dir: /var/lib/kubeadm
+
+# Where to write the join command so workers can read it
+kubeadm_join_command_file: /var/lib/kubeadm/join-command.txt
+
+# ---------------------------------------------------------------------------
+# kubelet configuration for the control plane
+# ---------------------------------------------------------------------------
+
+kubelet_config_file: /etc/kubernetes/kubelet/config.yaml
+
+# ---------------------------------------------------------------------------
+# Feature flags
+# ---------------------------------------------------------------------------
+
+run_kubeadm_init: true
