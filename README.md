@@ -30,49 +30,54 @@ Ansible Controller
 ## Project Structure — Every Folder Explained
 
 ```
-ansible-project/
-├── ansible.cfg                  # Ansible configuration
+k8s-ansible/
+├── ansible.cfg                  # Ansible configuration (points at the production inventory)
 ├── .gitignore                   # Files Git should ignore
-├── .ansible-lint                # Linting rules
+├── .ansible-lint                # Linting rules (used when you run ansible-lint)
 ├── README.md                    # You are here
+├── how-everything-works.md      # Beginner course: how Ansible works in this repo
+├── prompt.md                    # The original AI prompt this project was generated from
+├── requirements.yml             # Placeholder for future Ansible Galaxy role dependencies
 │
 ├── inventory/                   # THE SOURCE OF TRUTH for hosts
-│   ├── production/               #   Production environment
-│   │   ├── hosts.yml             #     Host definitions + groups
-│   │   ├── group_vars/           #     Group variables
-│   │   └── host_vars/            #     Host-specific variables
-│   └── staging/                 #   Staging environment
+│   ├── production/              #   The environment you actually deploy to
+│   │   ├── hosts.yml            #     Host definitions + groups
+│   │   ├── group_vars/          #     Group variables (all / control-plane / workers)
+│   │   └── host_vars/           #     Host-specific variables (optional overrides)
+│   └── staging/                 #   Ready-made example for a second environment
 │       ├── hosts.yml
 │       └── group_vars/
 │
-├── group_vars/                  # Alternative location (root level)
-├── host_vars/                   # Alternative location (root level)
+├── group_vars/                  # Alternative (root-level) group_vars location
 │
 ├── playbooks/                   # Playbook entry-points
-│   ├── site.yml                 #   Master playbook
-│   ├── bootstrap.yml            #   Initial server setup
-│   └── kubernetes-cluster.yml   #   K8s provisioning
+│   ├── site.yml                 #   Master playbook — runs everything below
+│   ├── bootstrap.yml            #   OS prep for all nodes
+│   ├── kubernetes-cluster.yml   #   Install k8s, init control plane, join workers, add CNI
+│   └── verify.yml               #   Cluster health checks
 │
-├── roles/                       # REUSABLE automation units
-│   ├── common/                  #   OS prep (packages, swap, sysctl)
-│   │   ├── tasks/              #     main.yml - the actual work
-│   │   ├── handlers/           #     Service restarts etc.
-│   │   ├── templates/           #     Jinja2 templates
-│   │   ├── files/               #     Static files
-│   │   ├── defaults/            #     Default variables (lowest)
-│   │   ├── vars/                #     Internal variables
-│   │   └── meta/                #     Metadata, deps
-│   ├── containerd/              #   Container runtime
-│   ├── kubernetes/              #   kubeadm, kubelet, kubectl
-│   ├── control-plane/           #   kubeadm init
-│   └── worker/                  #   Join cluster
-│
-├── templates/                   # Shared Jinja2 templates
-├── files/                       # Shared static files
-├── scripts/                     # Helper shell scripts
-├── docs/                        # Documentation, diagrams
-└── tests/                       # Molecule / test scenarios
+└── roles/                       # REUSABLE automation units
+    ├── common/                  #   OS prep (packages, swap, sysctl, reboot)
+    ├── containerd/              #   Container runtime
+    ├── kubernetes/              #   kubeadm, kubelet, kubectl
+    ├── control-plane/           #   kubeadm init + share the join command
+    ├── worker/                  #   kubeadm join
+    ├── calico/                  #   CNI pod networking
+    └── verify/                  #   Cluster health checks
 ```
+
+Every role follows the same standard Ansible skeleton (the essential files):
+
+```
+roles/<role>/
+├── defaults/    # Default variables (lowest precedence)
+├── handlers/    # Restart-on-change handlers (triggered by notify)
+├── meta/        # Role metadata + dependencies (enforce role ordering)
+├── tasks/       # THE actual job — main.yml is auto-loaded
+├── templates/   # Jinja2 templates (containerd, control-plane, worker, calico)
+└── vars/        # Internal variables (higher precedence)
+```
+
 ---
 
 ## Why Each Folder Exists
@@ -131,17 +136,14 @@ Internal variables — higher precedence than defaults, not meant for override.
 #### `roles/<role>/meta/`
 Role metadata: dependencies, author, platforms. Resolved before the role runs.
 
-### `templates/` and `files/` (root)
-Shared templates/files used by multiple roles.
+### `requirements.yml`
+Declares Ansible Galaxy roles the project needs. Currently empty — all roles are written in-repo. When you add a community role later, list it here and install it with `ansible-galaxy install -r requirements.yml`.
 
-### `scripts/`
-Utility shell scripts for non-Ansible tasks.
+### `prompt.md`
+The original AI prompt used to generate this repository (11 build stages). Keep it as the "requirements document" that explains *why* the project looks the way it does.
 
-### `docs/`
-Project documentation, architecture diagrams, runbooks.
-
-### `tests/`
-Automated tests (Molecule scenarios).
+### `how-everything-works.md`
+A beginner-level course that walks through how this whole repo works — the Ansible concepts, every layer of files, and a full end-to-end playbook walkthrough.
 
 ---
 
@@ -151,18 +153,23 @@ Automated tests (Molecule scenarios).
 2. **Install Ansible** (see docs.ansible.com).
 3. **Update IPs** in `inventory/production/hosts.yml`.
 4. **Set up SSH keys** for the `ansible` user.
-5. **Run the bootstrap:**
+5. **Run the bootstrap** (OS prep on all nodes):
    ```bash
    ansible-playbook playbooks/bootstrap.yml
    ```
-6. **Provision the cluster:**
+6. **Provision the cluster** (install k8s, init control plane, join workers, add CNI):
    ```bash
    ansible-playbook playbooks/kubernetes-cluster.yml
    ```
-7. **Verify:**
+7. **Verify** cluster health:
    ```bash
    ansible-playbook playbooks/verify.yml
    ```
+
+> **One-command version:** `playbooks/site.yml` runs steps 5–7 in order:
+> ```bash
+> ansible-playbook playbooks/site.yml
+> ```
 
 ---
 
@@ -195,6 +202,7 @@ Automated tests (Molecule scenarios).
 - **Self-documenting** — every task has a clear `name:`.
 - **Variable naming** — descriptive, lowercase, underscore-separated.
 - **Handlers for restarts** — avoid restarting on every run.
+- **Role dependencies** — `meta/main.yml` chains ensure the correct run order automatically.
 - **Check mode safe** — tasks use `check_mode:` where needed.
 - **.gitignore + .ansible-lint** — professional quality out of the box.
 
