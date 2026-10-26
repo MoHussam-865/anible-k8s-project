@@ -15,8 +15,10 @@
 # Pod network CIDR — the subnet used for container-to-container traffic
 kubeadm_pod_network_cidr: "{{ pod_network_cidr | default('10.0.0.0/16') }}"
 
-# API server endpoint — the IP:port workers use to reach the control plane
-kubeadm_apiserver_endpoint: "https://{{ ansible_default_ipv4.address }}:{{ kubernetes_api_port | default('6443') }}"
+# API server endpoint — the host:port workers use to reach the control plane
+# Must NOT include the https:// protocol — kubeadm's --control-plane-endpoint
+# flag expects a bare <host>:<port> string.
+kubeadm_apiserver_endpoint: "{{ ansible_default_ipv4.address }}:{{ kubernetes_api_port | default('6443') }}"
 
 # Directory where kubeadm stores cluster certificates and config
 kubeadm_data_dir: /var/lib/kubeadm

@@ -106,8 +106,8 @@
 #     Must NOT overlap with your physical network (10.1.0.0/24).
 #     10.0.0.0/16 is the DEFAULT and works for most labs.
 #
-#   --apiserver-endpoint=https://10.1.0.10:6443
-#     The URL where workers reach the Kubernetes API.
+#   --control-plane-endpoint=10.1.0.10:6443
+#     The host:port where workers reach the Kubernetes API.
 #     Must be accessible from ALL worker nodes.
 #     Port 6443 is the IANA-registered port for Kubernetes.
 #
@@ -128,7 +128,7 @@
     cmd: >
       kubeadm init
         --pod-network-cidr={{ kubeadm_pod_network_cidr }}
-        --apiserver-endpoint={{ kubeadm_apiserver_endpoint }}
+        --control-plane-endpoint={{ kubeadm_apiserver_endpoint }}
         --apiserver-cert-validity-days={{ kubeadm_cert_days | default(3650) }}
   become: true
   when:
