@@ -27,7 +27,11 @@ containerd_install_method: "apt"
 # universe repo. These vars define how we add that repo (see tasks/main.yml).
 # ---------------------------------------------------------------------------
 containerd_docker_apt_key: "https://download.docker.com/linux/ubuntu/gpg"
-containerd_docker_apt_repo: "deb https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+# Docker repo codename — override in group_vars if your nodes report a
+# non-standard LSB name (e.g. a custom AWS AMI). Defaulting to jammy.
+# Use `ansible all -m setup -a 'filter=ansible_distribution_release'` to check.
+containerd_docker_apt_codename: jammy
+containerd_docker_apt_repo: "deb [signed-by={{ containerd_docker_keyring }}] https://download.docker.com/linux/ubuntu {{ containerd_docker_apt_codename }} stable"
 
 # ---------------------------------------------------------------------------
 # containerd version (used when install_method = "github")

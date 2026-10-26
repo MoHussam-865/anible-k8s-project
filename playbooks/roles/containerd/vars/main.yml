@@ -18,4 +18,4 @@ containerd_data_dirs:
   - /etc/containerd
 
 # Docker apt repository keyring path (for containerd.io installation)
-containerd_docker_keyring: /etc/apt/keyrings/docker.gpg
+containerd_docker_keyring: /etc/apt/keyrings/docker.asc
