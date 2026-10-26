@@ -29,7 +29,7 @@
 ---
 # Kubernetes Version Settings
 # ============================================================
-kubernetes_release: "xUbuntu_22.04"
+kubernetes_release: "v1.37"
 kubernetes_version: "stable"
 
 # Container Runtime

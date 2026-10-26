@@ -7,7 +7,7 @@
 # =============================================================================
 
 ---
-kubernetes_release: "xUbuntu_22.04"
+kubernetes_release: "v1.37"
 kubernetes_version: "stable"
 containerd_install_method: "apt"
 containerd_version: "1.7.6"
