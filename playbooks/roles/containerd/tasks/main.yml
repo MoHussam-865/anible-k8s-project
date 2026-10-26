@@ -255,5 +255,28 @@
 
 
 
+# - name: Write explicit containerd config for Kubernetes
+#   ansible.builtin.copy:
+#     dest: "{{ containerd_config_path | default('/etc/containerd/config.toml') }}"
+#     content: |
+#       version = 2
+#       [plugins]
+#         [plugins."io.containerd.grpc.v1.cri"]
+#           [plugins."io.containerd.grpc.v1.cri".containerd]
+#             [plugins."io.containerd.grpc.v1.cri".containerd.runtimes]
+#               [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc]
+#                 runtime_type = "io.containerd.runc.v2"
+#                 [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc.options]
+#                   SystemdCgroup = true
+#     mode: "0644"
+#     owner: root
+#     group: root
+#   become: true
+#   notify: restart containerd
+#   tags:
+#     - containerd
+#     - config
+
+
 - name: Flush handlers to apply containerd config immediately
   ansible.builtin.meta: flush_handlers
