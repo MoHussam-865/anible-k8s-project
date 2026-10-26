@@ -129,7 +129,6 @@
       kubeadm init
         --pod-network-cidr={{ kubeadm_pod_network_cidr }}
         --control-plane-endpoint={{ kubeadm_apiserver_endpoint }}
-        --apiserver-cert-validity-days={{ kubeadm_cert_days | default(3650) }}
   become: true
   when:
     - run_kubeadm_init | bool
