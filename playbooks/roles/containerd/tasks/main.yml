@@ -172,15 +172,51 @@
 #   2. Replaces all {{ variables }} with their values
 #   3. Copies the result to the destination
 #   4. Reports 'changed' if the destination file differs
+#
+# UPDATE: To resolve the Kubernetes CRI plugin error ("unknown service runtime"),
+# the template approach has been replaced with dynamic configuration generation
+# directly from the containerd binary, ensuring CRI is enabled and SystemdCgroup
+# is set appropriately.
 # =============================================================================
 
-- name: Deploy containerd configuration
-  ansible.builtin.template:
-    src: containerd_config.yml.j2
+- name: Generate default containerd config
+  ansible.builtin.shell: containerd config default
+  register: containerd_config_default
+  changed_when: false
+  become: true
+  tags:
+    - containerd
+    - config
+
+- name: Write containerd config
+  ansible.builtin.copy:
     dest: "{{ containerd_config_path }}"
+    content: "{{ containerd_config_default.stdout }}"
     mode: "0644"
     owner: root
     group: root
+  become: true
+  notify: restart containerd
+  tags:
+    - containerd
+    - config
+
+- name: Set SystemdCgroup to true in containerd config
+  ansible.builtin.replace:
+    path: "{{ containerd_config_path }}"
+    regexp: 'SystemdCgroup = false'
+    replace: 'SystemdCgroup = true'
+  become: true
+  notify: restart containerd
+  tags:
+    - containerd
+    - config
+
+- name: Ensure CRI plugin is not disabled in containerd config
+  ansible.builtin.lineinfile:
+    path: "{{ containerd_config_path }}"
+    regexp: '^\s*disabled_plugins\s*=\s*\["cri"\]'
+    state: absent
   become: true
   notify: restart containerd
   tags:
@@ -207,10 +243,11 @@
 # =============================================================================
 
 - name: Ensure containerd service is running and enabled
-  ansible.builtin.service:
+  ansible.builtin.systemd:
     name: "{{ containerd_service_name }}"
     state: "{{ containerd_service_state }}"
     enabled: "{{ containerd_service_enabled }}"
+    daemon_reload: yes
   become: true
   tags:
     - containerd
