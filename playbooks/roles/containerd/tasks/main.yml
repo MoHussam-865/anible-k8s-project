@@ -252,3 +252,8 @@
   tags:
     - containerd
     - service
+
+
+
+- name: Flush handlers to apply containerd config immediately
+  ansible.builtin.meta: flush_handlers
