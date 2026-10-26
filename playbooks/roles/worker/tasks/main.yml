@@ -54,7 +54,7 @@
 - name: Wait for control plane API to be ready
   ansible.builtin.wait_for:
     # The host to check (IP or hostname of the control plane)
-    host: "{{ hostvars[worker_control_plane_host].ansible_default_ipv4.address }}"
+    host: "{{ hostvars[worker_control_plane_host].ansible_facts.default_ipv4.address }}"
     # The port to check (Kubernetes API port)
     port: "{{ worker_control_plane_port }}"
     # How long to wait before giving up

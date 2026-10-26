@@ -358,7 +358,7 @@ Runs the task once per item. Inside the task, `{{ item }}` is the current value.
 
 ### Facts
 
-Automatically discovered information about each host: `ansible_default_ipv4.address`, `ansible_distribution`, `ansible_hostname`. Facts make tasks adaptive — the playbook always uses the node's *real* IP instead of a hardcoded one.
+Automatically discovered information about each host: `ansible_facts['default_ipv4'].address`, `ansible_facts['distribution']`, `ansible_facts['hostname']`. Facts make tasks adaptive — the playbook always uses the node's *real* IP instead of a hardcoded one.
 
 ### Handlers
 
@@ -446,7 +446,7 @@ Play "Bootstrap all nodes" targets `all`, becomes root:
 
 - ensures `/etc/kubernetes` exists;
 - skips if the cluster already initialized (it `stat`s existing certificates);
-- runs `kubeadm init` with options built from variables (`--pod-network-cidr`, `--apiserver-endpoint=https://<real-ip>:6443`, cert validity);
+- runs `kubeadm init` with options built from variables (`--pod-network-cidr`, `--control-plane-endpoint=<real-ip>:6443`, cert validity);
 - `register`s the output, `set_fact`s the `kubeadm join …` command, and writes it to `/var/lib/kubeadm/join-command.txt`;
 - deploys `kubelet-config.yaml.j2`, restarts kubelet, prints the join command.
 

@@ -39,7 +39,7 @@ containerd_package: "containerd.io"
 
 # Network Settings
 pod_network_cidr: "10.0.0.0/16"
-kubernetes_api_endpoint: "{{ hostvars['control-plane-01']['ansible_default_ipv4']['address'] }}"
+kubernetes_api_endpoint: "{{ hostvars['control-plane-01']['ansible_facts']['default_ipv4']['address'] }}"
 
 # Kubernetes OS user
 kubernetes_user: "root"
