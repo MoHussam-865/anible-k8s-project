@@ -53,4 +53,4 @@ cni:
 # Node name — identifies this containerd instance
 # By default, containerd uses the hostname.
 # We can override it here if needed.
-# node_name: "{{ ansible_hostname }}"
+# node_name: "{{ ansible_facts['hostname'] }}"

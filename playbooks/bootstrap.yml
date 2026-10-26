@@ -68,8 +68,8 @@
   pre_tasks:
     - name: Ensure we are running on Ubuntu
       ansible.builtin.fail:
-        msg: "This playbook requires Ubuntu. Detected: {{ ansible_distribution }}"
-      when: ansible_distribution != "Ubuntu"
+        msg: "This playbook requires Ubuntu. Detected: {{ ansible_facts.distribution }}"
+      when: ansible_facts.distribution != "Ubuntu"
       tags:
         - always
 

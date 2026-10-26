@@ -242,13 +242,19 @@
 # TASK 8: Verify kubectl is installed
 # =============================================================================
 # Quick verification that kubectl is available and executable.
-# We use the 'command' module to run 'kubectl version'.
+# We use the 'command' module to run 'kubectl version --client'.
+# IMPORTANT: the --client flag is REQUIRED here. Without it, kubectl tries
+# to reach the API server (localhost:8080) to report the server version —
+# but at this stage the cluster has NOT been initialized yet (kubeadm init
+# happens in Stage 8), so the plain 'kubectl version' would fail with
+# "The connection to the server localhost:8080 was refused".
+# --client prints only the local client version and exits 0.
 # The 'register' keyword captures the output for verification.
 # =============================================================================
 
 - name: Verify kubectl is installed
   ansible.builtin.command:
-    cmd: kubectl version
+    cmd: kubectl version --client
   register: kubectl_version_output
   changed_when: false
   check_mode: false

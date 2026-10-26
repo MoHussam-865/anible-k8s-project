@@ -118,7 +118,7 @@
   become: true
   when:
     - containerd_install_method == "apt"
-    - ansible_pkg_mgr == "apt"
+    - ansible_facts.pkg_mgr == "apt"
   notify: restart containerd
   tags:
     - containerd
@@ -150,7 +150,7 @@
   become: true
   when:
     - containerd_install_method == "github"
-    - ansible_architecture == "x86_64"
+    - ansible_facts.architecture == "x86_64"
   notify: restart containerd
   tags:
     - containerd
