@@ -106,3 +106,23 @@ common_default_packages:
   - python3-pip
   - gnupg
   - wget
+  - chrony   # modern NTP daemon — replaces the deprecated/removed 'ntpdate' package
+
+# ---------------------------------------------------------------------------
+# Time synchronization (chrony)
+# ---------------------------------------------------------------------------
+# chrony REPLACES the deprecated 'ntpdate' package (removed from Ubuntu 22.04+
+# repositories). It is the modern NTP daemon and is what Kubernetes nodes
+# should use to keep their clocks in sync (see tasks/main.yml — TASK 3).
+#
+# These variables mirror the containerd role's service pattern:
+#   containerd_service_name / _state / _enabled  ->  common_chrony_*
+# ---------------------------------------------------------------------------
+
+# Master switch: set to false to skip ALL chrony management
+common_manage_chrony: true
+
+# chrony service settings (the systemd unit on Ubuntu is named 'chrony')
+common_chrony_service_name: chrony
+common_chrony_service_state: started
+common_chrony_service_enabled: true

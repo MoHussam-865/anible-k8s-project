@@ -72,7 +72,63 @@
     - packages
 
 # =============================================================================
-# TASK 3: Disable swap
+# TASK 3: Configure chrony — time synchronization
+# =============================================================================
+# WHY WAS ntpdate REMOVED?
+#   ntpdate was a one-shot tool: it set the clock ONCE and exited.
+#   It has been DEPRECATED and REMOVED from the Ubuntu repositories
+#   (definitively absent on Ubuntu 22.04+), which is exactly why 'apt'
+#   failed with: "No package matching 'ntpdate' is available".
+#   A one-shot tool is also the WRONG model for a cluster — after ntpdate
+#   exits, the clock starts drifting again until you re-run it.
+#
+# WHY CHRONY?
+#   chrony is the modern NTP daemon (default on RHEL 8+, available on
+#   Ubuntu from the standard repositories):
+#     - Runs CONTINUOUSLY, so node clocks never drift
+#     - Syncs much faster at boot and over flaky networks
+#     - Handles clock steps/leaps gracefully
+#     - A single small systemd-managed package — a perfect fit for a role
+#
+# WHY DOES KUBERNETES REQUIRE SYNCHRONIZED CLOCKS?
+#   Kubernetes assumes every node agrees on the current time:
+#     1. Certificates & TLS — kubeadm issues short-lived (< 1 year) certs.
+#        With clock skew, TLS checks fail with "x509: certificate has
+#        expired or is not yet valid" and the API becomes unreachable.
+#     2. ServiceAccount tokens — JWT validity/expiry checks are time-based.
+#     3. etcd (the cluster's database) — raft heartbeats and leader
+#        elections require clocks within milliseconds of each other.
+#     4. kubelet probes & metrics — liveness/readiness checks and audit
+#        log timestamps are meaningless if node clocks disagree.
+#
+# NOTE: On Ubuntu, installing 'chrony' automatically stops and disables the
+# lightweight systemd-timesyncd daemon, so the two never fight over the
+# clock. The chrony PACKAGE itself is installed by the "Install baseline
+# packages" task above (it is listed in common_packages). This task only
+# guarantees the SERVICE is actually running and enabled at boot.
+#
+# Key Ansible concepts:
+#   ansible.builtin.service:
+#     Idempotent systemd wrapper.
+#     state: started   → start chrony NOW if it is not running
+#     enabled: true    → ensure chrony starts at boot (survives reboots)
+#     Re-running this task when everything is already correct reports 'ok'
+#     and changes NOTHING — this is what makes the role idempotent.
+# =============================================================================
+
+- name: Ensure chrony time-sync daemon is enabled and running
+  ansible.builtin.service:
+    name: "{{ common_chrony_service_name }}"
+    state: "{{ common_chrony_service_state }}"
+    enabled: "{{ common_chrony_service_enabled }}"
+  become: true
+  when: common_manage_chrony | bool
+  tags:
+    - common
+    - time
+
+# =============================================================================
+# TASK 4: Disable swap
 # =============================================================================
 # Kubernetes REQUIRES swap to be disabled.
 # Why? Kubernetes manages container memory directly.
@@ -109,7 +165,7 @@
     - swap
 
 # =============================================================================
-# TASK 4: Load kernel modules
+# TASK 5: Load kernel modules
 # =============================================================================
 # Kubernetes and containerd need certain kernel modules loaded.
 # These are persisted across reboots via /etc/modules-load.d/k8s.conf
@@ -164,7 +220,7 @@
     - kernel
 
 # =============================================================================
-# TASK 5: Configure sysctl parameters
+# TASK 6: Configure sysctl parameters
 # =============================================================================
 # sysctl parameters are Linux kernel settings.
 # Kubernetes requires specific values for networking, filesystem, etc.
@@ -191,7 +247,7 @@
     - sysctl
 
 # =============================================================================
-# TASK 6: Check if reboot is required
+# TASK 7: Check if reboot is required
 # =============================================================================
 # On Ubuntu, some kernel updates create /var/run/reboot-required.
 # We use the 'stat' module to check if this file exists.
@@ -224,7 +280,7 @@
     - reboot
 
 # =============================================================================
-# TASK 7: Reboot if necessary
+# TASK 8: Reboot if necessary
 # =============================================================================
 # If the stat check found /var/run/reboot-required, we reboot.
 #

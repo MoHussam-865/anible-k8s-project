@@ -45,6 +45,11 @@ kubernetes_api_endpoint: "{{ hostvars['control-plane-01']['ansible_default_ipv4'
 kubernetes_user: "root"
 
 # Common packages
+# NOTE: 'ntpdate' is deprecated and has been REMOVED from modern Ubuntu
+# repositories, so it cannot be installed anymore. It has been replaced by
+# 'chrony' — a daemon that keeps node clocks synced continuously (a one-shot
+# tool like ntpdate is useless in a cluster anyway).
+# See roles/common/tasks/main.yml — TASK 3 — for why time sync matters to K8s.
 common_packages:
   - apt-transport-https
   - ca-certificates
@@ -55,7 +60,7 @@ common_packages:
   - lsb-release
   - htop
   - net-tools
-  - ntpdate
+  - chrony
   - wget
 
 # Kernel Modules
