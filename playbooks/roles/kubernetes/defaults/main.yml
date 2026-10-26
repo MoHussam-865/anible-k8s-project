@@ -1,4 +1,4 @@
-﻿# =============================================================================
+# =============================================================================
 # roles/kubernetes/defaults/main.yml
 # =============================================================================
 # Default variables for the Kubernetes role.
@@ -12,14 +12,21 @@
 # Common channels: stable, beta, nightly
 # ---------------------------------------------------------------------------
 
-kubernetes_release: "xUbuntu_22.04"
+kubernetes_release: "v1.37"
 kubernetes_version: "stable"
 
-# The full apt repository URL
-kubernetes_apt_repo: "deb https://download.kubernetes.io/kubernetes/{{ kubernetes_release }}/deb/ /"
+# ---------------------------------------------------------------------------
+# Official Kubernetes apt repository (pkgs.k8s.io)
+# ---------------------------------------------------------------------------
+# The old download.kubernetes.io host was deprecated in Sept 2023 and
+# has been replaced by pkgs.k8s.io. The new format is distribution-
+# agnostic (no more xUbuntu_22.04 per-OS paths). The signed-by option
+# is required on Ubuntu 22.04+ for apt to trust the GPG key.
+# ---------------------------------------------------------------------------
+kubernetes_apt_repo: "deb [signed-by={{ kubernetes_apt_keyring }}] https://pkgs.k8s.io/core:/{{ kubernetes_version }}:/{{ kubernetes_release }}/deb/ /"
 
 # GPG key URL for the Kubernetes apt repository
-kubernetes_apt_key: "https://pkgs.k8s.io/core:/kubernetes/{{ kubernetes_release }}/deb/Release.key"
+kubernetes_apt_key: "https://pkgs.k8s.io/core:/{{ kubernetes_version }}:/{{ kubernetes_release }}/deb/Release.key"
 
 # ---------------------------------------------------------------------------
 # Packages to install
