@@ -103,10 +103,10 @@
 #   --pod-network-cidr=10.0.0.0/16
 #     Defines the IP address range for pod-to-pod networking.
 #     Containers get IPs from this range.
-#     Must NOT overlap with your physical network (192.168.1.0/24).
+#     Must NOT overlap with your physical network (10.1.0.0/24).
 #     10.0.0.0/16 is the DEFAULT and works for most labs.
 #
-#   --apiserver-endpoint=https://192.168.1.10:6443
+#   --apiserver-endpoint=https://10.1.0.10:6443
 #     The URL where workers reach the Kubernetes API.
 #     Must be accessible from ALL worker nodes.
 #     Port 6443 is the IANA-registered port for Kubernetes.

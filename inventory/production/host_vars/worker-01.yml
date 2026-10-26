@@ -1,5 +1,5 @@
 ﻿---
 # Worker-01 specific variables
 # These override any group_vars for this host.
-ansible_host: 192.168.1.11
+ansible_host: 10.1.0.8
 kubelet_node_type: "worker"

@@ -1,0 +1,30 @@
+# =============================================================================
+# hosts  — Ansible inventory file (project root)
+# =============================================================================
+# Group names mirror the project inventory (inventory/production/hosts.yml):
+#   all > cluster > control-plane
+#                > workers
+#
+# Ansible connects via SSH using the 'ansible' user (see ansible.cfg).
+# Hostname (inventory alias) | ansible_host (IP to SSH into)
+# -----------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
+# control-plane  — Kubernetes master node(s)
+# -----------------------------------------------------------------------------
+[control-plane]
+control-plane-01 ansible_host=10.1.0.10
+
+# -----------------------------------------------------------------------------
+# workers  — Kubernetes worker nodes
+# -----------------------------------------------------------------------------
+[workers]
+worker-01 ansible_host=10.1.0.8
+worker-02 ansible_host=10.1.0.6
+
+# -----------------------------------------------------------------------------
+# cluster  — parent group of ALL kubernetes nodes (matches project hierarchy)
+# -----------------------------------------------------------------------------
+[cluster:children]
+control-plane
+workers

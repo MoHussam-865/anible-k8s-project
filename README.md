@@ -20,13 +20,13 @@ Ansible Controller
 
 ## Infrastructure
 
-| Host              | Role          | IP (example)  |
-|-------------------|---------------|---------------|
-| control-plane-01  | control-plane | 192.168.1.10  |
-| worker-01         | worker        | 192.168.1.11  |
-| worker-02         | worker        | 192.168.1.12  |
+| Host              | Role          | IP              |
+|-------------------|---------------|-----------------|
+| control-plane-01  | control-plane | 10.1.0.10       |
+| worker-01         | worker        | 10.1.0.8        |
+| worker-02         | worker        | 10.1.0.6        |
 
-> Replace IPs in `inventory/production/hosts.yml` with your actual VM addresses.
+> IPs are set in `inventory/production/hosts.yml`. Update them if your VM addresses differ.
 ## Project Structure — Every Folder Explained
 
 ```

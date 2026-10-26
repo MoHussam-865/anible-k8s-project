@@ -1,4 +1,4 @@
 ﻿---
 # Worker-02 specific variables
-ansible_host: 192.168.1.12
+ansible_host: 10.1.0.6
 kubelet_node_type: "worker"
