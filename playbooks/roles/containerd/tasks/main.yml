@@ -46,10 +46,66 @@
     - containerd
 
 # =============================================================================
-# TASK SET 2: Install containerd (method: apt)
+# TASK 2: Add Docker APT repository (for containerd.io)
+# =============================================================================
+# The containerd.io package is distributed via Docker's official apt repository,
+# NOT through Ubuntu's universe repo. We must add the Docker repo GPG key
+# and repository source before apt can install containerd.io (original error:
+# "No package matching 'containerd.io' is available").
+#
+# This step is ONLY needed when install_method is "apt".
+# When using "github", the binary is downloaded directly (no repo needed).
+#
+# Why three sub-tasks?
+#   1. Create keyrings directory  —  /etc/apt/keyrings/ may not exist on a
+#      minimal Ubuntu install (created by docker.io package, but we haven't
+#      installed that yet — chicken-and-egg).
+#   2. Download GPG key  —  get_url fetches Docker's official GPG key into
+#      the keyrings directory (same pattern as the kubernetes role).
+#      Without this, apt refuses to trust the Docker repository.
+#   3. Add apt repository   —  apt_repository writes a .sources entry under
+#      /etc/apt/sources.list.d/docker.sources and runs apt update.
+# =============================================================================
+
+- name: Create apt keyrings directory
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "0755"
+  become: true
+  when: containerd_install_method == "apt"
+  tags:
+    - containerd
+    - repository
+
+- name: Download Docker GPG key
+  ansible.builtin.get_url:
+    url: "{{ containerd_docker_apt_key }}"
+    dest: "{{ containerd_docker_keyring }}"
+    mode: "0644"
+  become: true
+  when: containerd_install_method == "apt"
+  tags:
+    - containerd
+    - repository
+
+- name: Add Docker apt repository
+  ansible.builtin.apt_repository:
+    repo: "{{ containerd_docker_apt_repo }}"
+    state: present
+    filename: docker
+    update_cache: true
+  become: true
+  when: containerd_install_method == "apt"
+  tags:
+    - containerd
+    - repository
+
+# =============================================================================
+# TASK SET 3: Install containerd via apt (method: apt)
 # =============================================================================
 # The apt method is the SIMPLEST approach.
-# Ubuntu has containerd.io in its universe repository.
+# containerd.io is sourced from Docker's apt repository (added in TASK 2).
 # This is perfect for a home lab — updates are managed by apt.
 # The version may be slightly older than the GitHub release.
 # =============================================================================
@@ -69,7 +125,7 @@
     - packages
 
 # =============================================================================
-# TASK SET 3: Install containerd (method: github)
+# TASK SET 4: Install containerd via GitHub (method: github)
 # =============================================================================
 # The GitHub method gives you the LATEST containerd binary.
 # It requires more steps:
@@ -100,7 +156,7 @@
     - containerd
 
 # =============================================================================
-# TASK 4: Configure containerd
+# TASK 5: Configure containerd
 # =============================================================================
 # containerd uses a YAML config file.
 # We provide a template (roles/containerd/templates/containerd_config.yml.j2)
@@ -132,7 +188,7 @@
     - config
 
 # =============================================================================
-# TASK 5: Start and enable containerd service
+# TASK 6: Start and enable containerd service
 # =============================================================================
 # The 'service' module manages systemd services.
 #

@@ -21,6 +21,15 @@
 containerd_install_method: "apt"
 
 # ---------------------------------------------------------------------------
+# Docker apt repository settings (for containerd.io)
+# ---------------------------------------------------------------------------
+# The 'containerd.io' package lives in Docker's apt repository, NOT in Ubuntu's
+# universe repo. These vars define how we add that repo (see tasks/main.yml).
+# ---------------------------------------------------------------------------
+containerd_docker_apt_key: "https://download.docker.com/linux/ubuntu/gpg"
+containerd_docker_apt_repo: "deb https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+
+# ---------------------------------------------------------------------------
 # containerd version (used when install_method = "github")
 # ---------------------------------------------------------------------------
 containerd_version: "1.7.6"

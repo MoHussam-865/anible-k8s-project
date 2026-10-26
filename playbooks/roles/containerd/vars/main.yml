@@ -16,3 +16,6 @@ containerd_systemd_unit: /etc/systemd/system/containerd.service
 containerd_data_dirs:
   - /var/lib/containerd
   - /etc/containerd
+
+# Docker apt repository keyring path (for containerd.io installation)
+containerd_docker_keyring: /etc/apt/keyrings/docker.gpg

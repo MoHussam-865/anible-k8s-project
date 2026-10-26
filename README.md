@@ -211,3 +211,19 @@ A beginner-level course that walks through how this whole repo works — the Ans
 ## License
 
 This project is for educational purposes. Use freely, adapt, and learn.
+
+# **Run in one go**
+
+```bash
+git clone https://github.com/MoHussam-865/anible-k8s-project && \
+cd anible-k8s-project && \
+sed -i '1s/^\xEF\xBB\xBF//' ansible.cfg && \
+ansible-playbook playbooks/site.yml
+```
+
+
+```bash
+git pull && \
+sed -i '1s/^\xEF\xBB\xBF//' ansible.cfg && \
+ansible-playbook playbooks/site.yml
+```

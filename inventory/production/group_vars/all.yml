@@ -73,9 +73,9 @@ k8s_kernel_modules:
   - ip_vs_nq
   - ip_vs_lblc
   - ip_vs_lblcr
-  - ip_vs_http
+  
   - ip_vs_ftp
-  - ip_vs_sctp
+  
   - xt_connmark
 
 # sysctl Parameters
