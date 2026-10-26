@@ -10,5 +10,10 @@ kubeadm_binary: /usr/bin/kubeadm
 kubelet_binary: /usr/bin/kubelet
 kubectl_binary: /usr/bin/kubectl
 
-# Kubernetes apt repository keyring
-kubernetes_apt_keyring: /etc/apt/keyrings/kubernetes.gpg
+# Kubernetes apt repository keyring (ASCII-armored, .asc extension)
+# IMPORTANT: pkgs.k8s.io serves an ASCII-ARMORED key (text starting with
+# "-----BEGIN PGP PUBLIC KEY BLOCK-----"). Apt only accepts armored keyrings
+# in files with the .asc extension — a .gpg keyring must be BINARY. Saving
+# the armored key as .gpg breaks apt update with "key(s) ignored as the file
+# has an unsupported filetype". Same pattern as containerd's docker.asc.
+kubernetes_apt_keyring: /etc/apt/keyrings/kubernetes.asc

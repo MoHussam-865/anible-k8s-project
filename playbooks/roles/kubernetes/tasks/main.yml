@@ -56,7 +56,17 @@
 # We must add the Kubernetes official GPG key to trust the repository.
 #
 # The 'get_url' module downloads the key file.
-# The 'apt_key' module adds it to apt's trusted keys.
+#
+# WHY .asc AND NOT .gpg?
+#   pkgs.k8s.io serves an ASCII-ARMORED key (text beginning with
+#   "-----BEGIN PGP PUBLIC KEY BLOCK-----"). Apt only accepts armored
+#   keyrings in files with the .asc extension; a .gpg keyring must be
+#   BINARY. Saving the armored key as .gpg breaks apt update with:
+#     "The key(s) in the keyring ... are ignored as the file has an
+#      unsupported filetype"
+#   This is the same pattern the containerd role uses for Docker's key
+#   (/etc/apt/keyrings/docker.asc).
+# The key is stored in the keyring path referenced by signed-by in the repo line.
 #
 # Why add a GPG key?
 #   Without it, apt refuses to install packages from the Kubernetes repo.
@@ -64,7 +74,16 @@
 #   and haven't been tampered with.
 # =============================================================================
 
-- name: Download Kubernetes APT GPG key
+- name: Remove stale Kubernetes binary keyring (legacy .gpg format)
+  ansible.builtin.file:
+    path: /etc/apt/keyrings/kubernetes.gpg
+    state: absent
+  become: true
+  tags:
+    - kubernetes
+    - repository
+
+- name: Download Kubernetes APT GPG key (ASCII-armored)
   ansible.builtin.get_url:
     url: "{{ kubernetes_apt_key }}"
     dest: "{{ kubernetes_apt_keyring }}"
