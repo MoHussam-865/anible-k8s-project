@@ -215,7 +215,16 @@
 # kubelet needs to know it is a control-plane node.
 # We deploy a kubelet config template.
 # =============================================================================
+- name: Ensure /etc/kubernetes/kubelet directory exists
+  ansible.builtin.file:
+    path: /etc/kubernetes/kubelet
+    state: directory
+    mode: "0755"
+    owner: root
+    group: root
+  become: true
 
+  
 - name: Deploy kubelet configuration for control plane
   ansible.builtin.template:
     src: kubelet-config.yaml.j2
