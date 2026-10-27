@@ -328,7 +328,7 @@ Nobody must remember the order in the playbook — **the roles enforce their own
 | `kubernetes` | add the K8s apt repo/GPG key; install kubeadm, kubelet, kubectl |
 | `control-plane` | `kubeadm init`; save the join command; kubelet config |
 | `worker` | wait for the API; `kubeadm join`; kubelet config |
-| `calico` | download CNI plugins; deploy the pod-network config |
+| `calico` | apply the Calico manifest via `kubectl apply -f` |
 | `verify` | health checks (services + `kubectl get nodes`) |
 ## 9. The toolbox: Ansible features used all over this project
 
@@ -458,13 +458,13 @@ Play "Bootstrap all nodes" targets `all`, becomes root:
 - runs `kubeadm join --token=… <cp-ip>:6443`;
 - deploys `kubelet-worker-config.yaml.j2`, starts kubelet.
 
-*Play 4 "Install CNI" (hosts: all).* Role `calico`:
+*Play 4 "Install Calico CNI" (hosts: control-plane).* Role `calico`:
 
-- creates `/usr/lib/cni` and `/etc/cni/net.d`;
-- downloads and extracts the Calico CNI plugins;
-- renders `cni-networks.yml.j2` → `10-calico.conf`;
-- points containerd's CRI CNI settings at `/usr/lib/cni` and `/etc/cni/net.d` inside `/etc/containerd/config.toml` and notifies a containerd restart;
-- checks the `calico` binary exists and prints status.
+- runs `kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.25.0/manifests/calico.yaml` on the control plane (once, using the `admin.conf` kubeconfig);
+- the Calico DaemonSet then deploys CNI plugin binaries and configuration onto **every** node automatically;
+- no manual directory creation, tarball extraction, or containerd config changes are needed — the manifest handles everything.
+
+> **Why the change?** Older Calico releases shipped standalone CNI binary `.tar.gz` files that were downloaded per-node. Starting with Calico v3.26+, those tarballs are no longer published. The `kubectl apply` manifest approach is the modern, supported method.
 
 **Step 3 — `verify.yml` is imported.** The `verify` role checks the `containerd` and `kubelet` services on all nodes (block/rescue/always), then delegated `kubectl` tasks on the control plane print `kubectl get nodes` and per-node readiness. A final play prints the summary and next commands.
 
@@ -513,7 +513,7 @@ When every task reports `ok` (or a small, expected set of `changed`), your clust
 | `kubernetes` | defaults, vars, handlers (restart kubelet) |
 | `control-plane` | defaults, vars, handlers, templates/kubelet-config.yaml.j2 |
 | `worker` | defaults, vars, handlers, templates/kubelet-worker-config.yaml.j2 |
-| `calico` | defaults, vars, handlers (restart containerd), templates/cni-networks.yml.j2 |
+| `calico` | defaults only |
 | `verify` | defaults only (plus meta) |
 ## 12. Glossary
 

@@ -19,7 +19,7 @@
 #   Play 1: ALL nodes — install base stack (common → containerd → kubernetes)
 #   Play 2: control-plane — run kubeadm init, extract join token
 #   Play 3: workers — run kubeadm join using the token from play 2
-#   Play 4: ALL nodes — install CNI (Calico) for pod networking
+#   Play 4: control-plane — install Calico CNI via kubectl apply manifest
 #
 # Why this order?
 #   - kubeadm init MUST run BEFORE kubeadm join (obviously)
@@ -122,14 +122,24 @@
         - always
 
 # =============================================================================
-# PLAY 4: Install CNI networking (Calico) on ALL nodes
+# PLAY 4: Install Calico CNI networking on the control plane
 # =============================================================================
-# Pods need network connectivity to communicate. We install Calico CNI
-# which provides the virtual network bridge.
+# Pods need network connectivity to communicate. We install Calico via its
+# official Kubernetes manifest.
+#
+# IMPORTANT:
+#   This play targets ONLY the control-plane node. The kubectl apply command
+#   only needs to run once — the Calico DaemonSet then deploys the CNI
+#   plugin binaries and configuration onto EVERY node automatically.
+#
+#   Previously this play ran on ALL nodes and manually downloaded/extracted
+#   CNI binary tarballs — but those tarballs are no longer published by the
+#   Calico project (404 errors). The manifest approach is the modern,
+#   supported installation method.
 # =============================================================================
 
-- name: PLAY 4 — Install CNI networking (Calico)
-  hosts: all
+- name: PLAY 4 — Install Calico CNI networking
+  hosts: control-plane
   gather_facts: true
   become: true
 
@@ -139,8 +149,8 @@
         - calico
 
   post_tasks:
-    - name: CNI networking installed
+    - name: Calico manifest applied
       ansible.builtin.debug:
-        msg: "Calico CNI installed on {{ ansible_hostname }}."
+        msg: "Calico manifest applied from control-plane {{ ansible_hostname }}. CNI DaemonSet will install on all nodes."
       tags:
         - always

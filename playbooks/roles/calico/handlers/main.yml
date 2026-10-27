@@ -3,20 +3,8 @@
 # =============================================================================
 # Handlers for the Calico CNI role.
 # =============================================================================
-
----
-# ---------------------------------------------------------------------------
-# Handler: restart containerd
-# ---------------------------------------------------------------------------
-# When CNI configuration changes, containerd must restart to pick up
-# the new network plugins. This handler is notified by:
-#   - Deploy CNI network configuration task
-#   - Update containerd config with CNI paths task
-# ===========================================================================
-
-- name: restart containerd
-  ansible.builtin.service:
-    name: containerd
-    state: restarted
-  become: true
-  listen: "restart containerd"
+#
+# No handlers are needed.
+# The Calico manifest (applied via kubectl) handles all CNI deployment
+# through its DaemonSet — no containerd restart is required.
+# =============================================================================

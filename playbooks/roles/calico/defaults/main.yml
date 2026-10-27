@@ -6,36 +6,11 @@
 
 ---
 # ---------------------------------------------------------------------------
-# CNI plugin settings
+# Calico manifest settings
 # ---------------------------------------------------------------------------
 
-# Which CNI plugin to install: "calico", "flannel", or "weave"
-cni_plugin: "calico"
-
-# Calico CNI plugin version
-calico_cni_version: "3.29.2"
-
-# Base URL for downloading Calico CNI plugins
-calico_cni_download_url: "https://github.com/projectcalico/calico/releases/download/v{{ calico_cni_version }}/calico-cni-plugins-{{ calico_cni_version }}.tar.gz"
-
-# Where CNI plugins are installed
-cni_plugin_dir: /usr/lib/cni
-
-# Where CNI configuration files live
-cni_conf_dir: /etc/cni/net.d
-
-# ---------------------------------------------------------------------------
-# CNI network configuration
-# ---------------------------------------------------------------------------
-
-# The pod network bridge name
-cni_bridge_name: "cni-bridge0"
-
-# The pod network CIDR
-cni_network_cidr: "{{ pod_network_cidr | default('10.0.0.0/16') }}"
-
-# The gateway IP for the pod network
-cni_gateway_ip: "10.0.0.1"
-
-# Subnet to use for pods
-cni_pod_subnet: "10.0.0.0/24"
+# Version tag for the Calico manifest (must be a GitHub tag, e.g., v3.25.0).
+# This is applied via:
+#   kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/\
+#                     {{ calico_manifest_version }}/manifests/calico.yaml
+calico_manifest_version: "v3.25.0"

@@ -1,116 +1,49 @@
 ﻿# =============================================================================
 # roles/calico/tasks/main.yml
 # =============================================================================
-# Install and configure Calico CNI (Container Networking Interface).
+# Install Calico CNI (Container Networking Interface) via its official
+# Kubernetes manifest.
 #
 # =============================================================================
-# WHY DOES KUBERNETES NEED A CNI?
+# WHY THIS APPROACH?
 # =============================================================================
 #
-# Out of the box, Kubernetes can schedule pods onto nodes, but those pods
-# have NO NETWORK CONNECTIVITY. They are isolated containers.
+# Older Calico releases shipped standalone CNI binary tarballs that were
+# downloaded and extracted onto each node. Starting with Calico v3.26+,
+# the project stopped providing those tarballs — the CNI binaries are now
+# bundled inside the calico-node container image and automatically deployed
+# onto every node by a DaemonSet.
 #
-# A Kubernetes cluster is NOT USABLE without networking because:
-#   1. Pods cannot talk to each other (microservices can't communicate)
-#   2. Pods cannot reach the internet (can't download updates)
-#   3. Services like databases can't accept connections
-#   4. Load balancers can't distribute traffic
-#   5. The cluster is an ISLAND
+# The modern, supported approach is:
+#   kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/\
+#                      {{ calico_manifest_version }}/manifests/calico.yaml
 #
-# The CNI (Container Networking Interface) solves this by:
-#   1. Creating virtual network bridges between hosts
-#   2. Assigning IP addresses to containers
-#   3. Routing traffic between containers
+# This single command creates all required resources:
+#   - CustomResourceDefinitions (BGPPeer, IPPool, FelixConfiguration, …)
+#   - calico-node DaemonSet (installs CNI binaries + config on every node)
+#   - calico-kube-controllers Deployment (manages IPAM, policies, etc.)
+#   - RBAC roles, ServiceAccounts, ConfigMaps, and more
 #
-# =============================================================================
-# CNI OPTIONS COMPARISON
-# =============================================================================
-#
-# Flannel  - Red Hat's original. Simple. Default in older K8s.
-# Calico   - Project Calico. More features, better performance.
-#            [PREFERRED for this project]
-# Weave    - VMware. Most features. Complex. Best for large setups.
+# The command only needs to run ONCE on the control-plane node.
 # =============================================================================
 
 ---
-- name: Ensure CNI directories exist
-  ansible.builtin.file:
-    path: "{{ item }}"
-    state: directory
-    mode: "0755"
-  become: true
-  loop:
-    - "{{ cni_plugin_dir }}"
-    - "{{ cni_conf_dir }}"
+- name: Install Calico network plugin via manifest
+  ansible.builtin.command: >
+    kubectl apply -f
+    https://raw.githubusercontent.com/projectcalico/calico/{{ calico_manifest_version }}/manifests/calico.yaml
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: calico_install_result
+  changed_when: '"created" in calico_install_result.stdout or "configured" in calico_install_result.stdout'
+  run_once: true
   tags:
     - calico
-    - cni
 
-- name: Download and extract Calico CNI plugins
-  ansible.builtin.unarchive:
-    src: "{{ calico_cni_download_url }}"
-    dest: "{{ cni_plugin_dir }}"
-    remote_src: true
-    extra_opts:
-      - --strip-components=1
-    mode: "0755"
-  become: true
-  when: cni_plugin == "calico"
-  tags:
-    - calico
-    - cni
-
-- name: Deploy CNI network configuration
-  ansible.builtin.template:
-    src: cni-networks.yml.j2
-    dest: "{{ cni_conf_dir }}/10-calico.conf"
-    mode: "0644"
-  become: true
-  notify: restart containerd
-  tags:
-    - calico
-    - config
-
-- name: Point containerd CRI plugin at the CNI plugin binary directory
-  ansible.builtin.lineinfile:
-    path: "{{ containerd_cni_conf }}"
-    regexp: '^(\s*bin_dir\s*=).*$'
-    line: '\1 "{{ cni_plugin_dir }}"'
-    backrefs: true
-  become: true
-  notify: restart containerd
-  tags:
-    - calico
-    - cni
-
-- name: Point containerd CRI plugin at the CNI config directory
-  ansible.builtin.lineinfile:
-    path: "{{ containerd_cni_conf }}"
-    regexp: '^(\s*conf_dir\s*=).*$'
-    line: '\1 "{{ cni_conf_dir }}"'
-    backrefs: true
-  become: true
-  notify: restart containerd
-  tags:
-    - calico
-    - cni
-
-- name: Verify Calico CNI plugin is installed
-  ansible.builtin.stat:
-    path: "{{ cni_plugin_dir }}/calico"
-  register: calico_binary_check
-  changed_when: false
-  tags:
-    - calico
-    - verify
-
-- name: Display Calico CNI status
+- name: Display Calico installation result
   ansible.builtin.debug:
-    msg:
-      - "Calico CNI plugins installed: {{ calico_binary_check.stat.exists }}"
-      - "Plugin directory: {{ cni_plugin_dir }}"
-      - "Config directory: {{ cni_conf_dir }}"
-  when: calico_binary_check.stat.exists
+    var: calico_install_result.stdout_lines
+  run_once: true
   tags:
     - calico
     - verify
