@@ -158,29 +158,45 @@
 # =============================================================================
 # TASK 5: Configure containerd
 # =============================================================================
-# containerd uses a YAML config file.
-# We provide a template (roles/containerd/templates/containerd_config.yml.j2)
-# that gets rendered with our variables.
+# containerd reads its configuration from exactly ONE file:
 #
-# Why use a TEMPLATE instead of a static file?
-#   - Templates support Jinja2 expressions: {{ variable }}
-#   - Templates can use conditionals, loops, filters
-#   - Templates make the config DYNAMIC per environment
+#     /etc/containerd/config.toml
 #
-# The 'template' module:
-#   1. Reads the .j2 file
-#   2. Replaces all {{ variables }} with their values
-#   3. Copies the result to the destination
-#   4. Reports 'changed' if the destination file differs
+# Any .yml file under /etc/containerd/ is NEVER read by containerd.
 #
-# UPDATE: To resolve the Kubernetes CRI plugin error ("unknown service runtime"),
-# the template approach has been replaced with dynamic configuration generation
-# directly from the containerd binary, ensuring CRI is enabled and SystemdCgroup
-# is set appropriately.
+# WHY THIS MATTERS — the "unknown service runtime.v1.RuntimeService" error:
+#
+#   The containerd.io apt package ships a stock /etc/containerd/config.toml
+#   that contains:
+#
+#       disabled_plugins = ["cri"]
+#
+#   (Docker ships it that way because Docker does not use the CRI plugin.)
+#   kubeadm talks to containerd over the CRI socket, so when the CRI plugin is
+#   disabled, `kubeadm init` fails in the preflight phase with:
+#
+#       [ERROR CRI]: ... validate CRI v1 runtime API ...
+#                    unknown service runtime.v1.RuntimeService
+#       (code = Unimplemented, endpoint /run/containerd/containerd.sock)
+#
+# The tasks below automate the exact manual fix you would type by hand:
+#   1. Generate a fresh config with `containerd config default`
+#   2. Set SystemdCgroup = true   (required by kubelet's systemd cgroup driver)
+#   3. Neutralize any `disabled_plugins` line (so the CRI plugin is never off)
+#   4. Write the result to /etc/containerd/config.toml and restart containerd
+#
+# The tuning is applied to the generated text BEFORE the write, so the copy is
+# idempotent (no spurious "changed" and no needless restart on re-runs).
 # =============================================================================
 
-- name: Generate default containerd config
-  ansible.builtin.shell: containerd config default
+- name: Generate a fresh containerd config tuned for Kubernetes
+  ansible.builtin.shell: |
+    set -o pipefail
+    containerd config default |
+      sed 's/SystemdCgroup = false/SystemdCgroup = true/g' |
+      sed 's/disabled_plugins/#disabled_plugins/g'
+  args:
+    executable: /bin/bash
   register: containerd_config_default
   changed_when: false
   become: true
@@ -201,24 +217,11 @@
     - containerd
     - config
 
-- name: Set SystemdCgroup to true in containerd config
-  ansible.builtin.replace:
-    path: "{{ containerd_config_path }}"
-    regexp: 'SystemdCgroup = false'
-    replace: 'SystemdCgroup = true'
-  become: true
-  notify: restart containerd
-  tags:
-    - containerd
-    - config
-
-- name: Ensure CRI plugin is not disabled in containerd config
-  ansible.builtin.lineinfile:
-    path: "{{ containerd_config_path }}"
-    regexp: '^\s*disabled_plugins\s*=\s*\["cri"\]'
+- name: Remove stale config.yml left by older versions (containerd only reads config.toml)
+  ansible.builtin.file:
+    path: /etc/containerd/config.yml
     state: absent
   become: true
-  notify: restart containerd
   tags:
     - containerd
     - config
@@ -252,30 +255,6 @@
   tags:
     - containerd
     - service
-
-
-
-# - name: Write explicit containerd config for Kubernetes
-#   ansible.builtin.copy:
-#     dest: "{{ containerd_config_path | default('/etc/containerd/config.toml') }}"
-#     content: |
-#       version = 2
-#       [plugins]
-#         [plugins."io.containerd.grpc.v1.cri"]
-#           [plugins."io.containerd.grpc.v1.cri".containerd]
-#             [plugins."io.containerd.grpc.v1.cri".containerd.runtimes]
-#               [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc]
-#                 runtime_type = "io.containerd.runc.v2"
-#                 [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc.options]
-#                   SystemdCgroup = true
-#     mode: "0644"
-#     owner: root
-#     group: root
-#   become: true
-#   notify: restart containerd
-#   tags:
-#     - containerd
-#     - config
 
 
 - name: Flush handlers to apply containerd config immediately

@@ -227,3 +227,13 @@ git pull && \
 sed -i '1s/^\xEF\xBB\xBF//' ansible.cfg && \
 ansible-playbook playbooks/site.yml
 ```
+
+
+```
+[master]
+10.1.0.10
+
+[nodes]
+10.1.0.8
+10.1.0.6
+```

@@ -13,5 +13,5 @@ calico_cni_plugins:
   - loopback
   - portmap
 
-# containerd CNI configuration path (to add our plugin)
-containerd_cni_conf: /etc/containerd/config.yml
+# containerd CNI configuration path (containerd only reads config.toml)
+containerd_cni_conf: /etc/containerd/config.toml

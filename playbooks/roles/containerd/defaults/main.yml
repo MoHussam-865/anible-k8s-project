@@ -49,7 +49,14 @@ containerd_apt_package: "containerd.io"
 # ---------------------------------------------------------------------------
 # containerd configuration file path
 # ---------------------------------------------------------------------------
-containerd_config_path: "/etc/containerd/config.yml"
+# containerd ONLY reads /etc/containerd/config.toml — it NEVER reads a .yml
+# file here. The containerd.io package ships a config.toml that disables the
+# CRI plugin, which makes `kubeadm init` fail with:
+#   "unknown service runtime.v1.RuntimeService"
+# The containerd role regenerates this file from `containerd config default`
+# and tunes it for Kubernetes (SystemdCgroup = true, CRI enabled).
+# ---------------------------------------------------------------------------
+containerd_config_path: "/etc/containerd/config.toml"
 
 # ---------------------------------------------------------------------------
 # containerd service settings

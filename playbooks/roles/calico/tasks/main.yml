@@ -71,17 +71,24 @@
     - calico
     - config
 
-- name: Update containerd config with CNI paths
-  ansible.builtin.blockinfile:
-    path: /etc/containerd/config.yml
-    block: |
-      # CNI networking (added by Ansible Calico role)
-      cni:
-        bin_path: {{ cni_plugin_dir }}
-        conf_path: {{ cni_conf_dir }}
-    marker: "# {mark} ANSIBLE MANAGED CNI CONFIG"
-    create: true
-    mode: "0644"
+- name: Point containerd CRI plugin at the CNI plugin binary directory
+  ansible.builtin.lineinfile:
+    path: "{{ containerd_cni_conf }}"
+    regexp: '^(\s*bin_dir\s*=).*$'
+    line: '\1 "{{ cni_plugin_dir }}"'
+    backrefs: true
+  become: true
+  notify: restart containerd
+  tags:
+    - calico
+    - cni
+
+- name: Point containerd CRI plugin at the CNI config directory
+  ansible.builtin.lineinfile:
+    path: "{{ containerd_cni_conf }}"
+    regexp: '^(\s*conf_dir\s*=).*$'
+    line: '\1 "{{ cni_conf_dir }}"'
+    backrefs: true
   become: true
   notify: restart containerd
   tags:

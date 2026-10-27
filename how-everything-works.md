@@ -463,7 +463,7 @@ Play "Bootstrap all nodes" targets `all`, becomes root:
 - creates `/usr/lib/cni` and `/etc/cni/net.d`;
 - downloads and extracts the Calico CNI plugins;
 - renders `cni-networks.yml.j2` → `10-calico.conf`;
-- adds the `cni:` block to `/etc/containerd/config.yml` and notifies a containerd restart;
+- points containerd's CRI CNI settings at `/usr/lib/cni` and `/etc/cni/net.d` inside `/etc/containerd/config.toml` and notifies a containerd restart;
 - checks the `calico` binary exists and prints status.
 
 **Step 3 — `verify.yml` is imported.** The `verify` role checks the `containerd` and `kubelet` services on all nodes (block/rescue/always), then delegated `kubectl` tasks on the control plane print `kubectl get nodes` and per-node readiness. A final play prints the summary and next commands.
