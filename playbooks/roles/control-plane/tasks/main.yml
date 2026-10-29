@@ -163,28 +163,23 @@
 #   to each element and keeps those where the TEST returns True.
 # =============================================================================
 
-- name: Generate a new join command if cluster is already initialized
+- name: Generate a clean join command string
   ansible.builtin.command: kubeadm token create --print-join-command
-  register: existing_join_command
+  register: generated_join_command
   changed_when: false
-  when: cluster_ca_check.stat.exists
   run_once: true
   tags:
     - control-plane
     - kubeadm
 
-- name: Extract or set kubeadm join command
+- name: Store kubeadm join command as a fact
   ansible.builtin.set_fact:
-    kubeadm_join_command_raw: >-
-      {% if cluster_ca_check.stat.exists %}
-      {{ existing_join_command.stdout }}
-      {% else %}
-      {{ kubeadm_init_result.stdout_lines | select('match', '^kubeadm join') | first | default('') }}
-      {% endif %}
+    kubeadm_join_command_raw: "{{ generated_join_command.stdout }}"
   run_once: true
   tags:
     - control-plane
     - kubeadm
+    
   # ---------------------------------------------------------------------------
   # run_once: true
   #   'set_fact' normally sets a fact PER HOST.
