@@ -85,8 +85,7 @@
 
 - name: Retrieve join command from control plane hostvars
   ansible.builtin.set_fact:
-    worker_join_command: >
-      {{ hostvars[worker_control_plane_host]['kubeadm_join_command_raw'] | default('') }}
+    worker_join_command: "{{ hostvars[worker_control_plane_host]['kubeadm_join_command_raw'] | default('') | trim }}"
   when:
     - worker_join_cluster | bool
     - hostvars[worker_control_plane_host]['kubeadm_join_command_raw'] is defined
