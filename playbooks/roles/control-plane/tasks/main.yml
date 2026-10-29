@@ -195,6 +195,15 @@
 #   ansible control-plane-01 -m fetch -a "src=/var/lib/kubeadm/join-command.txt dest=./"
 # =============================================================================
 
+- name: Ensure kubeadm directory exists
+  ansible.builtin.file:
+    path: "{{ kubeadm_data_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  become: true
+
 - name: Write join command to persistent file
   ansible.builtin.copy:
     content: "{{ kubeadm_join_command_raw }}"
